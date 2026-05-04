@@ -400,17 +400,32 @@ function doRMA() {
 }
 
 function doImport() {
-  var text = document.getElementById("import-txt").value.trim();
+  var text = document.getElementById("import-txt").value;
   var defSku = document.getElementById("import-sku").value.trim()||"Unknown";
-  if(!text){ toast("Nothing to import"); return; }
-  var lines = text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+  if(!text.trim()){ toast("Nothing to import"); return; }
+  // Normalize line endings and split
+  var lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
   var added=0, skipped=0, now=new Date().toISOString();
   lines.forEach(function(line){
-    var parts = line.split(/[\t,;]+/);
+    // Try tab first, then multiple spaces, then comma, then semicolon
+    var parts;
+    if(line.indexOf("\t")>=0){
+      parts = line.split("\t");
+    } else {
+      // Try splitting on 2+ spaces (browser may convert tabs to spaces)
+      var spaceMatch = line.match(/^(.+?)\s{2,}(.+)$/);
+      if(spaceMatch){
+        parts = [spaceMatch[1], spaceMatch[2]];
+      } else {
+        parts = line.split(/[,;]+/);
+      }
+    }
+    parts = parts.map(function(p){ return p.trim(); }).filter(Boolean);
     var sku=defSku, serial="";
-    if(parts.length>=2){ sku=parts[0].trim(); serial=parts[1].trim().toUpperCase(); }
-    else{ serial=parts[0].trim().toUpperCase(); }
-    if(!serial||inv.find(function(i){ return i.serial.toUpperCase()===serial; })){ skipped++; return; }
+    if(parts.length>=2){ sku=parts[0]; serial=parts[1].toUpperCase(); }
+    else if(parts.length===1){ serial=parts[0].toUpperCase(); }
+    if(!serial||serial.length<5){ skipped++; return; }
+    if(inv.find(function(i){ return i.serial.toUpperCase()===serial; })){ skipped++; return; }
     inv.push({serial:serial,sku:sku,status:"in-stock",updatedAt:now,notes:""});
     added++;
   });
