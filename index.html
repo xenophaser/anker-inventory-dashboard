@@ -216,6 +216,10 @@ var SK = "windmar_inv_v4";
 var LK = "windmar_log_v4";
 var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
 
+
+function setDrill(el) { drillSku = el.getAttribute("data-sku"); renderInv(); }
+function qReturnBtn(el) { qReturn(el.getAttribute("data-serial")); }
+
 function load() {
   try { var r = localStorage.getItem(SK); if(r) inv = JSON.parse(r); } catch(e){ inv=[]; }
   try { var r = localStorage.getItem(LK); if(r) log = JSON.parse(r); } catch(e){ log=[]; }
@@ -248,9 +252,9 @@ function renderInv(q) {
     if(sq) items = items.filter(function(i){ return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0; });
     var rows = items.map(function(i){
       var lbl = i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(""+esc(i.serial)+"")'>&#8629;</button></td></tr>";
+      var s2=i.serial; return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(s2)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(this)' data-serial='"+s2+"'>&#8629;</button></td></tr>";
     });
-    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv(sq)'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span><span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span><span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
 
@@ -278,7 +282,7 @@ function renderInv(q) {
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr style='cursor:pointer' onclick='drillSku=""+k+"";renderInv(sq)'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
+    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+k+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
   });
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:100px'>Total</th><th style='width:110px'>In stock</th><th style='width:110px'>Dispatched</th><th style='width:80px'>RMA</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
@@ -341,9 +345,9 @@ function renderQ() {
   var btn = document.getElementById("dbtn");
   if(!queue.length){ wrap.innerHTML=""; btn.disabled=true; return; }
   btn.disabled = !queue.some(function(q){ return q.found; });
-  wrap.innerHTML = queue.map(function(q,i){
+  wrap.innerHTML = queue.map(function(q,idx){
     var st = q.found && q.item.status!=="in-stock" ? "<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>" : "";
-    return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+"</span><button onclick='rmQ("+i+")'>&#215;</button></div>";
+    return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
   }).join("");
 }
 
@@ -376,7 +380,10 @@ function doDispatch() {
   saveInv(); render(); toast(td.length+" unit(s) dispatched");
 }
 
-function qReturn(serial){ document.getElementById("rma-sn").value=serial; openM("m-rma"); }
+function qReturn(el){ 
+  var serial = typeof el === "string" ? el : el.getAttribute("data-serial");
+  document.getElementById("rma-sn").value=serial; openM("m-rma"); 
+}
 
 function doRMA() {
   var serial = document.getElementById("rma-sn").value.trim().toUpperCase();
