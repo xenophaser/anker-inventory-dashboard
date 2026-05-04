@@ -37,12 +37,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:1rem}
 .irow{display:flex;gap:8px;margin-bottom:10px}
 .irow input{flex:1}
-input,select,textarea{
-  font-family:var(--sans);font-size:13px;
-  background:var(--surface2);border:1px solid var(--border2);
-  border-radius:var(--r);padding:8px 12px;
-  color:var(--text);outline:none;transition:border-color .15s
-}
+input,select,textarea{font-family:var(--sans);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;color:var(--text);outline:none;transition:border-color .15s}
 input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 input::placeholder{color:var(--text3)}
 select option{background:var(--surface2)}
@@ -94,7 +89,13 @@ tbody tr:last-child td{border-bottom:none}
 .ri:last-child{border:none}
 .rt{color:var(--text3);min-width:90px}
 .empty{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:3rem;color:var(--text3);font-size:13px;font-family:var(--mono)}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-dark);padding:9px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;font-family:var(--mono)}
+#sync-indicator{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px}
+#sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+#sync-dot.syncing{background:var(--warn);animation:blink .8s infinite}
+#sync-dot.ok{background:var(--accent)}
+#sync-dot.err{background:var(--danger)}
 @media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}}
 </style>
 </head>
@@ -103,6 +104,7 @@ tbody tr:last-child td{border-bottom:none}
 <header class="hdr">
   <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
   <div class="hdr-btns">
+    <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
     <button class="btn sm gh" onclick="openM('m-add')">+ Add item</button>
     <button class="btn sm gh" onclick="openM('m-import')">Import list</button>
     <button class="btn sm pri" onclick="exportCSV()">Export CSV</button>
@@ -171,23 +173,22 @@ tbody tr:last-child td{border-bottom:none}
 <div class="mbg" id="m-import">
   <div class="modal">
     <h3>Import inventory list</h3>
-    <div class="fld"><label>Paste list — Model TAB Serial, one per line</label><textarea id="import-txt" placeholder="F2600&#9;JHSY0120241123001838&#10;400W&#9;NVCL0120240725000481&#10;JHSY0120250305000775"></textarea></div>
-    <div class="fld"><label>Default model (if not included)</label><input id="import-sku" placeholder="e.g. F2600"/></div>
+    <div class="fld"><label>Paste list — Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838&#10;Anker SOLIX 400W&#9;A24371A1&#9;NVCL0120240725000481"></textarea></div>
+    <div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div>
     <p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p>
     <div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div>
   </div>
 </div>
-
 <div class="mbg" id="m-add">
   <div class="modal">
     <h3>Add item</h3>
-    <div class="fld"><label>Model</label><input id="add-sku" placeholder="F2600"/></div>
+    <div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div>
+    <div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A1781111"/></div>
     <div class="fld"><label>Serial number</label><input id="add-sn" placeholder="JHSY0120241123001838" style="font-family:var(--mono)"/></div>
     <div class="fld"><label>Notes</label><input id="add-notes" placeholder="optional"/></div>
     <div class="ma"><button class="btn" onclick="closeM('m-add')">Cancel</button><button class="btn pri" onclick="doAdd()">Add</button></div>
   </div>
 </div>
-
 <div class="mbg" id="m-rma">
   <div class="modal">
     <h3>Log return / RMA</h3>
@@ -202,7 +203,6 @@ tbody tr:last-child td{border-bottom:none}
     <div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div>
   </div>
 </div>
-
 <div class="mbg" id="m-paste">
   <div class="modal">
     <h3>Paste multiple serials</h3>
@@ -212,27 +212,71 @@ tbody tr:last-child td{border-bottom:none}
 </div>
 
 <script>
-var SK = "windmar_inv_v4";
-var LK = "windmar_log_v4";
+var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
+var SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
+
 var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
 
-
-function setDrill(el) { drillSku = el.getAttribute("data-sku"); renderInv(); }
-function qReturnBtn(el) { qReturn(el.getAttribute("data-serial")); }
-
-function load() {
-  try { var r = localStorage.getItem(SK); if(r) inv = JSON.parse(r); } catch(e){ inv=[]; }
-  try { var r = localStorage.getItem(LK); if(r) log = JSON.parse(r); } catch(e){ log=[]; }
-  render();
-}
-function saveInv() { try { localStorage.setItem(SK, JSON.stringify(inv)); } catch(e){} }
-function saveLog() { try { localStorage.setItem(LK, JSON.stringify(log.slice(0,300))); } catch(e){} }
-function addLog(msg, ex) {
-  var e = {ts: new Date().toISOString(), msg: msg};
-  if(ex) for(var k in ex) e[k]=ex[k];
-  log.unshift(e); saveLog();
+// ── Supabase helpers ──────────────────────────────────────────
+function sbGet(table, params) {
+  var url = SB_URL + "/rest/v1/" + table + "?" + (params||"order=updated_at.desc&limit=2000");
+  return fetch(url, {headers: HEADERS}).then(function(r){ return r.json(); });
 }
 
+function sbPost(table, data) {
+  return fetch(SB_URL + "/rest/v1/" + table, {
+    method: "POST", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
+    body: JSON.stringify(data)
+  });
+}
+
+function sbPatch(table, match, data) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
+    method: "PATCH", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
+    body: JSON.stringify(data)
+  });
+}
+
+function sbDelete(table, match) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
+    method: "DELETE", headers: HEADERS
+  });
+}
+
+// ── Sync indicator ────────────────────────────────────────────
+function setSyncStatus(s, label) {
+  var dot = document.getElementById("sync-dot");
+  var lbl = document.getElementById("sync-label");
+  dot.className = s;
+  lbl.textContent = label;
+}
+
+// ── Load data ─────────────────────────────────────────────────
+function loadData() {
+  setSyncStatus("syncing", "loading...");
+  Promise.all([
+    sbGet("inventory", "order=sku.asc&limit=2000"),
+    sbGet("activity_log", "order=ts.desc&limit=300")
+  ]).then(function(results) {
+    inv = results[0].map(function(r){ return {
+      serial: r.serial, sku: r.sku, skuCode: r.sku_code||"",
+      status: r.status, ref: r.ref||"", notes: r.notes||"",
+      updatedAt: r.updated_at
+    }; });
+    log = results[1].map(function(r){ return {
+      ts: r.ts, msg: r.msg, type: r.type||"",
+      serial: r.serial||"", reason: r.reason||"", notes: r.notes||""
+    }; });
+    setSyncStatus("ok", inv.length + " units");
+    render();
+  }).catch(function(e){
+    setSyncStatus("err", "offline");
+    toast("Connection error — check Supabase");
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────
 function render() { stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); }
 
 function stats() {
@@ -250,11 +294,11 @@ function renderInv(q) {
     var items = inv.filter(function(i){ return i.sku===drillSku; });
     if(sf) items = items.filter(function(i){ return i.status===sf; });
     if(sq) items = items.filter(function(i){ return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0; });
+    var skuCodeLabel = items.length>0 && items[0].skuCode ? " <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>" : "";
     var rows = items.map(function(i){
       var lbl = i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      var s2=i.serial; return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(s2)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(this)' data-serial='"+s2+"'>&#8629;</button></td></tr>";
+      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(this)' data-serial='"+esc(i.serial)+"'>&#8629;</button></td></tr>";
     });
-    var skuCodeLabel = items.length>0 && items[0].skuCode ? " <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>" : "";
     wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
@@ -283,12 +327,10 @@ function renderInv(q) {
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    var skuCode = g.skuCode || "";
-    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+k+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3)'>"+esc(skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
+    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3)'>"+esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
   });
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
-
 
 function renderRMA() {
   var wrap = document.getElementById("rma-tbl");
@@ -316,18 +358,20 @@ function fd(ts) {
   var d = new Date(ts);
   return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
 }
-
-function esc(s) {
-  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 function go(t) {
   var tabs = ["dispatch","inventory","rma","log"];
   document.querySelectorAll(".tab").forEach(function(b,i){ b.classList.toggle("active",tabs[i]===t); });
   document.querySelectorAll(".sec").forEach(function(s){ s.classList.remove("active"); });
   document.getElementById("sec-"+t).classList.add("active");
+  if(t==="inventory") renderInv(sq);
 }
 
+function setDrill(el) { drillSku = el.getAttribute("data-sku"); renderInv(); }
+function qReturn(el) { document.getElementById("rma-sn").value=el.getAttribute("data-serial"); openM("m-rma"); }
+
+// ── Dispatch ──────────────────────────────────────────────────
 function addS() {
   var inp = document.getElementById("si");
   var raw = inp.value.trim().toUpperCase();
@@ -338,7 +382,7 @@ function addS() {
 function procS(raw) {
   if(queue.find(function(q){ return q.serial===raw; })){ toast("Already in queue"); return; }
   var item = inv.find(function(i){ return i.serial.toUpperCase()===raw; });
-  queue.push({serial:raw, item:item, found:!!item});
+  queue.push({serial:raw,item:item,found:!!item});
   renderQ();
 }
 
@@ -367,90 +411,127 @@ function doDispatch() {
   var ref = document.getElementById("ref").value.trim();
   var td = queue.filter(function(q){ return q.found; });
   if(!td.length) return;
+  setSyncStatus("syncing","saving...");
   var now = new Date().toISOString();
-  td.forEach(function(q){
-    var item = inv.find(function(i){ return i.serial.toUpperCase()===q.serial; });
-    if(item){ item.status="dispatched"; item.updatedAt=now; item.ref=ref||""; }
+  var updates = td.map(function(q){
+    return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",updated_at:now});
   });
   var serials = td.map(function(q){ return q.serial; }).join(", ");
   var msg = "Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
-  addLog(msg,{type:"dispatch"});
+  updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
   var nf = queue.filter(function(q){ return !q.found; });
-  if(nf.length) addLog("Not found (skipped): "+nf.map(function(q){ return q.serial; }).join(", "));
-  queue=[];
-  document.getElementById("ref").value="";
-  saveInv(); render(); toast(td.length+" unit(s) dispatched");
+  if(nf.length) updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
+
+  Promise.all(updates).then(function(){
+    queue=[];
+    document.getElementById("ref").value="";
+    toast(td.length+" unit(s) dispatched");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
 }
 
-function qReturn(el){ 
-  var serial = typeof el === "string" ? el : el.getAttribute("data-serial");
-  document.getElementById("rma-sn").value=serial; openM("m-rma"); 
-}
-
+// ── RMA ───────────────────────────────────────────────────────
 function doRMA() {
   var serial = document.getElementById("rma-sn").value.trim().toUpperCase();
   var reason = document.getElementById("rma-reason").value;
   var notes = document.getElementById("rma-notes").value.trim();
   if(!serial){ toast("Serial required"); return; }
-  var item = inv.find(function(i){ return i.serial.toUpperCase()===serial; });
-  if(item){ item.status="rma"; item.updatedAt=new Date().toISOString(); }
-  addLog("RMA: "+serial+" — "+reason+(notes?" ("+notes+")":""),{type:"rma",serial:serial,reason:reason,notes:notes});
-  closeM("m-rma");
-  document.getElementById("rma-sn").value="";
-  document.getElementById("rma-notes").value="";
-  saveInv(); render(); toast("Return logged");
+  setSyncStatus("syncing","saving...");
+  var now = new Date().toISOString();
+  Promise.all([
+    sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:"rma",updated_at:now}),
+    sbPost("activity_log",{msg:"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":""),type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
+  ]).then(function(){
+    closeM("m-rma");
+    document.getElementById("rma-sn").value="";
+    document.getElementById("rma-notes").value="";
+    toast("Return logged");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); });
 }
 
+// ── Import ────────────────────────────────────────────────────
 function doImport() {
   var text = document.getElementById("import-txt").value;
-  var defSku = document.getElementById("import-sku").value.trim()||"Unknown";
+  var defName = document.getElementById("import-sku").value.trim()||"Unknown";
   if(!text.trim()){ toast("Nothing to import"); return; }
-  // Normalize line endings and split
   var lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
-  var added=0, skipped=0, now=new Date().toISOString();
+  var items = [], skipped = 0;
+  var existingSerials = {};
+  inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
+
   lines.forEach(function(line){
-    // Try tab first, then multiple spaces, then comma, then semicolon
     var parts;
-    if(line.indexOf("\t")>=0){
-      parts = line.split("\t");
-    } else {
-      var spaceMatch = line.match(/^(.+?)\s{2,}(.+)$/);
-      if(spaceMatch){ parts = [spaceMatch[1], spaceMatch[2]]; }
-      else { parts = line.split(/[,;]+/); }
+    if(line.indexOf("\t")>=0){ parts = line.split("\t"); }
+    else {
+      var sm = line.match(/^(.+?)\s{2,}(.+)$/);
+      if(sm){ parts=[sm[1],sm[2]]; } else { parts=line.split(/[,;]+/); }
     }
     parts = parts.map(function(p){ return p.trim(); }).filter(Boolean);
-    var name=defSku, skuCode="", serial="";
+    var name=defName, skuCode="", serial="";
     if(parts.length>=3){ name=parts[0]; skuCode=parts[1]; serial=parts[2].toUpperCase(); }
     else if(parts.length===2){ name=parts[0]; serial=parts[1].toUpperCase(); }
     else if(parts.length===1){ serial=parts[0].toUpperCase(); }
-    if(!serial||serial.length<5){ skipped++; return; }
-    if(inv.find(function(i){ return i.serial.toUpperCase()===serial; })){ skipped++; return; }
-    inv.push({serial:serial,sku:name,skuCode:skuCode,status:"in-stock",updatedAt:now,notes:""});
-    added++;
+    if(!serial||serial.length<5||existingSerials[serial]){ skipped++; return; }
+    existingSerials[serial]=true;
+    items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
   });
-  addLog("Imported "+added+" items ("+skipped+" skipped/duplicate)");
-  closeM("m-import");
-  document.getElementById("import-txt").value="";
-  saveInv(); render(); toast("Imported "+added+" items");
+
+  if(!items.length){ toast("No new items to import ("+skipped+" skipped)"); return; }
+  setSyncStatus("syncing","importing "+items.length+"...");
+
+  // Insert in batches of 500
+  var batches = [];
+  for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
+  var chain = Promise.resolve();
+  batches.forEach(function(batch){
+    chain = chain.then(function(){
+      return fetch(SB_URL+"/rest/v1/inventory",{
+        method:"POST",
+        headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
+        body:JSON.stringify(batch)
+      });
+    });
+  });
+
+  chain.then(function(){
+    return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});
+  }).then(function(){
+    closeM("m-import");
+    document.getElementById("import-txt").value="";
+    toast("Imported "+items.length+" items");
+    loadData();
+  }).catch(function(e){ setSyncStatus("err","import failed"); toast("Import error — try again"); });
 }
 
+// ── Add single item ───────────────────────────────────────────
 function doAdd() {
-  var sku=document.getElementById("add-sku").value.trim();
-  var serial=document.getElementById("add-sn").value.trim().toUpperCase();
-  var notes=document.getElementById("add-notes").value.trim();
+  var name = document.getElementById("add-name").value.trim();
+  var skuCode = document.getElementById("add-skucode").value.trim();
+  var serial = document.getElementById("add-sn").value.trim().toUpperCase();
+  var notes = document.getElementById("add-notes").value.trim();
   if(!serial){ toast("Serial required"); return; }
-  if(inv.find(function(i){ return i.serial===serial; })){ toast("Serial already exists"); return; }
-  inv.push({serial:serial,sku:sku||"Unknown",status:"in-stock",updatedAt:new Date().toISOString(),notes:notes});
-  addLog("Added: "+sku+" — "+serial);
-  closeM("m-add");
-  document.getElementById("add-sku").value="";
-  document.getElementById("add-sn").value="";
-  document.getElementById("add-notes").value="";
-  saveInv(); render(); toast("Item added");
+  setSyncStatus("syncing","saving...");
+  sbPost("inventory",{serial:serial,sku:name||"Unknown",sku_code:skuCode,status:"in-stock",notes:notes,updated_at:new Date().toISOString()})
+  .then(function(r){
+    if(r.status===409){ toast("Serial already exists"); setSyncStatus("ok",inv.length+" units"); return; }
+    return sbPost("activity_log",{msg:"Added: "+name+" — "+serial,ts:new Date().toISOString()});
+  }).then(function(){
+    closeM("m-add");
+    document.getElementById("add-name").value="";
+    document.getElementById("add-skucode").value="";
+    document.getElementById("add-sn").value="";
+    document.getElementById("add-notes").value="";
+    toast("Item added");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); });
 }
 
+// ── Export ────────────────────────────────────────────────────
 function exportCSV() {
-  var rows=[["Model","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){ return [i.sku,i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""]; }));
+  var rows=[["Model","SKU","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){
+    return [i.sku,i.skuCode||"",i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""];
+  }));
   var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(","); }).join("\n");
   var a=document.createElement("a");
   a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
@@ -466,10 +547,10 @@ var tt;
 function toast(msg){
   var t=document.getElementById("toast");
   t.textContent=msg; t.style.opacity="1";
-  clearTimeout(tt); tt=setTimeout(function(){ t.style.opacity="0"; },2200);
+  clearTimeout(tt); tt=setTimeout(function(){ t.style.opacity="0"; },2500);
 }
 
-load();
+loadData();
 </script>
 </body>
 </html>
