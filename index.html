@@ -13,7 +13,576 @@
   --accent:#5dca8a;--accent-dark:#0f2a1a;--accent-dim:#2a5a3a;
   --warn:#f0a030;--warn-dark:#2a1a00;
   --danger:#e05555;--danger-dark:#2a0f0f;
+  --mono:"IBM Plex Mono",
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windmar · Anker Inventory</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;--border2:#333;
+  --text:#f0ede8;--text2:#888;--text3:#555;
+  --accent:#5dca8a;--accent-dark:#0f2a1a;--accent-dim:#2a5a3a;
+  --warn:#f0a030;--warn-dark:#2a1a00;
+  --danger:#e05555;--danger-dark:#2a0f0f;
   --mono:"IBM Plex Mono",monospace;--sans:"IBM Plex Sans",sans-serif;
+  --r:6px;--rl:10px
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+.hdr{background:#000;border-bottom:1px solid var(--border);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.logo{font-family:var(--mono);font-size:13px;letter-spacing:.08em;display:flex;align-items:center;gap:10px;color:var(--text)}
+.dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:blink 2.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.hdr-btns{display:flex;gap:6px}
+.main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem}
+.stat .lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat .val{font-size:26px;font-weight:500;font-family:var(--mono)}
+.green{color:var(--accent)}.red{color:var(--danger)}.orange{color:var(--warn)}
+.tabs{display:flex;gap:2px;margin-bottom:1.25rem;background:var(--surface);padding:3px;border-radius:var(--r);width:fit-content;border:1px solid var(--border)}
+.tab{padding:6px 16px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text2);transition:all .15s}
+.tab.active{background:var(--surface2);color:var(--text);font-weight:500}
+.tab:hover:not(.active){color:var(--text);background:var(--surface2)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:1rem}
+.irow{display:flex;gap:8px;margin-bottom:10px}
+.irow input{flex:1}
+input,select,textarea{font-family:var(--sans);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px;color:var(--text);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input::placeholder{color:var(--text3)}
+select option{background:var(--surface2)}
+textarea{font-family:var(--mono);font-size:12px;height:120px;resize:vertical;width:100%}
+.queue{margin-bottom:10px}
+.qi{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-radius:var(--r);margin-bottom:4px;font-size:13px}
+.qi.found{background:var(--accent-dark);color:var(--accent);border:1px solid var(--accent-dim)}
+.qi.nf{background:var(--danger-dark);color:var(--danger);border:1px solid #4a1a1a}
+.qi .sn{font-family:var(--mono);font-size:12px;opacity:.8}
+.qi button{background:none;border:none;cursor:pointer;font-size:18px;color:inherit;opacity:.4;padding:0 4px;line-height:1}
+.qi button:hover{opacity:1}
+.df{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding-top:10px;border-top:1px solid var(--border)}
+.df input{width:200px}
+.btn{padding:8px 16px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text);transition:all .15s;font-weight:500}
+.btn:hover{background:var(--border);border-color:var(--border2)}
+.btn.pri{background:var(--accent);color:var(--accent-dark);border-color:var(--accent);font-weight:600}
+.btn.pri:hover{opacity:.85}
+.btn.pri:disabled{opacity:.25;cursor:not-allowed}
+.btn.dan{color:var(--danger);border-color:#4a1a1a;background:var(--danger-dark)}
+.btn.dan:hover{border-color:var(--danger)}
+.btn.sm{padding:5px 11px;font-size:12px}
+.btn.gh{border-color:var(--border);background:transparent;color:var(--text2)}
+.btn.gh:hover{background:var(--surface2);color:var(--text)}
+.sr{display:flex;gap:8px;margin-bottom:1rem}
+.sr input{flex:1}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border);font-weight:500}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
+tbody tr:hover{background:var(--surface2)}
+tbody tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--mono)}
+.badge.in-stock{background:var(--accent-dark);color:var(--accent)}
+.badge.dispatched{background:var(--danger-dark);color:var(--danger)}
+.badge.rma{background:var(--warn-dark);color:var(--warn)}
+.sec{display:none}.sec.active{display:block}
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.mbg.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--rl);border:1px solid var(--border2);padding:1.5rem;width:420px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:1.25rem;color:var(--text)}
+.fld{margin-bottom:.85rem}
+.fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:5px;font-weight:500}
+.fld input,.fld select{width:100%}
+.ma{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid var(--border)}
+.li{display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.li:last-child{border:none}
+.lt{color:var(--text3);font-family:var(--mono);white-space:nowrap;min-width:90px}
+.ri{padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;font-size:12px;font-family:var(--mono);color:var(--text2)}
+.ri:last-child{border:none}
+.rt{color:var(--text3);min-width:90px}
+.empty{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:3rem;color:var(--text3);font-size:13px;font-family:var(--mono)}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-dark);padding:9px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;font-family:var(--mono)}
+#sync-indicator{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px}
+#sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
+#sync-dot.syncing{background:var(--warn);animation:blink .8s infinite}
+#sync-dot.ok{background:var(--accent)}
+#sync-dot.err{background:var(--danger)}
+@media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+<header class="hdr">
+  <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
+  <div class="hdr-btns">
+    <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
+    <button class="btn sm gh" onclick="openM('m-add')">+ Add item</button>
+    <button class="btn sm gh" onclick="openM('m-import')">Import list</button>
+    <button class="btn sm pri" onclick="exportCSV()">Export CSV</button>
+  </div>
+</header>
+<main class="main">
+  <div class="stats">
+    <div class="stat"><div class="lbl">Total units</div><div class="val" id="s-total">—</div></div>
+    <div class="stat"><div class="lbl">In stock</div><div class="val green" id="s-stock">—</div></div>
+    <div class="stat"><div class="lbl">Dispatched</div><div class="val red" id="s-disp">—</div></div>
+    <div class="stat"><div class="lbl">RMA / Returns</div><div class="val orange" id="s-rma">—</div></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="go('dispatch')">Dispatch</button>
+    <button class="tab" onclick="go('inventory')">Inventory</button>
+    <button class="tab" onclick="go('rma')">RMA / Returns</button>
+    <button class="tab" onclick="go('log')">Activity log</button>
+  </div>
+
+  <div class="sec active" id="sec-dispatch">
+    <div class="card">
+      <div class="card-title">Quick dispatch</div>
+      <div class="irow">
+        <input id="si" type="text" placeholder="Type, paste, or scan serial…" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')addS()"/>
+        <button class="btn" onclick="addS()">Add</button>
+        <button class="btn" onclick="openM('m-paste')">Paste list</button>
+      </div>
+      <div class="queue" id="queue"></div>
+      <div class="df">
+        <input id="ref" type="text" placeholder="Order / reference # (optional)"/>
+        <div style="display:flex;gap:6px">
+          <button class="btn dan sm" onclick="clrQ()">Clear</button>
+          <button class="btn pri" id="dbtn" onclick="doDispatch()" disabled>Dispatch all</button>
+        </div>
+      </div>
+    </div>
+    <div id="recent"></div>
+  </div>
+
+  <div class="sec" id="sec-inventory">
+    <div class="sr">
+      <input type="text" placeholder="Search serial, model…" oninput="renderInv(this.value)"/>
+      <select onchange="sf=this.value;renderInv()" style="width:140px">
+        <option value="">All statuses</option>
+        <option value="in-stock">In stock</option>
+        <option value="dispatched">Dispatched</option>
+        <option value="rma">RMA</option>
+      </select>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
+  </div>
+
+  <div class="sec" id="sec-rma">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
+      <button class="btn" onclick="openM('m-rma')">+ Log return</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="rma-tbl"></div></div>
+  </div>
+
+  <div class="sec" id="sec-log">
+    <div class="card"><div id="log-wrap"></div></div>
+  </div>
+</main>
+
+<!-- MODALS -->
+<div class="mbg" id="m-import">
+  <div class="modal">
+    <h3>Import inventory list</h3>
+    <div class="fld"><label>Paste list — Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838&#10;Anker SOLIX 400W&#9;A24371A1&#9;NVCL0120240725000481"></textarea></div>
+    <div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div>
+    <p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p>
+    <div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div>
+  </div>
+</div>
+<div class="mbg" id="m-add">
+  <div class="modal">
+    <h3>Add item</h3>
+    <div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div>
+    <div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A1781111"/></div>
+    <div class="fld"><label>Serial number</label><input id="add-sn" placeholder="JHSY0120241123001838" style="font-family:var(--mono)"/></div>
+    <div class="fld"><label>Notes</label><input id="add-notes" placeholder="optional"/></div>
+    <div class="ma"><button class="btn" onclick="closeM('m-add')">Cancel</button><button class="btn pri" onclick="doAdd()">Add</button></div>
+  </div>
+</div>
+<div class="mbg" id="m-rma">
+  <div class="modal">
+    <h3>Log return / RMA</h3>
+    <div class="fld"><label>Serial number</label><input id="rma-sn" placeholder="Scan or type serial" style="font-family:var(--mono)"/></div>
+    <div class="fld"><label>Reason</label>
+      <select id="rma-reason" style="width:100%">
+        <option>No cambio</option><option>Re coordinado</option><option>Cancelado</option>
+        <option>Damaged</option><option>Back to stock</option><option>Other</option>
+      </select>
+    </div>
+    <div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div>
+    <div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div>
+  </div>
+</div>
+<div class="mbg" id="m-paste">
+  <div class="modal">
+    <h3>Paste multiple serials</h3>
+    <div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775&#10;LSVN0120230708000471"></textarea></div>
+    <div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div>
+  </div>
+</div>
+
+<script>
+var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
+var SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
+
+var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
+
+// ── Supabase helpers ──────────────────────────────────────────
+function sbGet(table, params) {
+  var url = SB_URL + "/rest/v1/" + table + "?" + (params||"order=updated_at.desc&limit=2000");
+  return fetch(url, {headers: HEADERS}).then(function(r){ return r.json(); });
+}
+
+function sbPost(table, data) {
+  return fetch(SB_URL + "/rest/v1/" + table, {
+    method: "POST", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
+    body: JSON.stringify(data)
+  });
+}
+
+function sbPatch(table, match, data) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
+    method: "PATCH", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
+    body: JSON.stringify(data)
+  });
+}
+
+function sbDelete(table, match) {
+  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
+    method: "DELETE", headers: HEADERS
+  });
+}
+
+// ── Sync indicator ────────────────────────────────────────────
+function setSyncStatus(s, label) {
+  var dot = document.getElementById("sync-dot");
+  var lbl = document.getElementById("sync-label");
+  dot.className = s;
+  lbl.textContent = label;
+}
+
+// ── Load data ─────────────────────────────────────────────────
+function fetchAllInventory(offset, accumulated) {
+  offset = offset || 0;
+  accumulated = accumulated || [];
+  var url = SB_URL + "/rest/v1/inventory?order=sku.asc&limit=1000&offset=" + offset;
+  return fetch(url, {headers: HEADERS}).then(function(r){ return r.json(); }).then(function(rows){
+    accumulated = accumulated.concat(rows);
+    if(rows.length === 1000) {
+      return fetchAllInventory(offset + 1000, accumulated);
+    }
+    return accumulated;
+  });
+}
+
+function loadData() {
+  setSyncStatus("syncing", "loading...");
+  Promise.all([
+    fetchAllInventory(),
+    sbGet("activity_log", "order=ts.desc&limit=300")
+  ]).then(function(results) {
+    inv = results[0].map(function(r){ return {
+      serial: r.serial, sku: r.sku, skuCode: r.sku_code||"",
+      status: r.status, ref: r.ref||"", notes: r.notes||"",
+      updatedAt: r.updated_at
+    }; });
+    log = results[1].map(function(r){ return {
+      ts: r.ts, msg: r.msg, type: r.type||"",
+      serial: r.serial||"", reason: r.reason||"", notes: r.notes||""
+    }; });
+    setSyncStatus("ok", inv.length + " units");
+    render();
+  }).catch(function(e){
+    setSyncStatus("err", "offline");
+    toast("Connection error — check Supabase");
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────
+function render() { stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); }
+
+function stats() {
+  document.getElementById("s-total").textContent = inv.length;
+  document.getElementById("s-stock").textContent = inv.filter(function(i){return i.status==="in-stock";}).length;
+  document.getElementById("s-disp").textContent = inv.filter(function(i){return i.status==="dispatched";}).length;
+  document.getElementById("s-rma").textContent = inv.filter(function(i){return i.status==="rma";}).length;
+}
+
+function renderInv(q) {
+  sq = q || "";
+  var wrap = document.getElementById("inv-tbl");
+
+  if(drillSku) {
+    var items = inv.filter(function(i){ return i.sku===drillSku; });
+    if(sf) items = items.filter(function(i){ return i.status===sf; });
+    if(sq) items = items.filter(function(i){ return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0; });
+    var skuCodeLabel = items.length>0 && items[0].skuCode ? " <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>" : "";
+    var rows = items.map(function(i){
+      var lbl = i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
+      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(this)' data-serial='"+esc(i.serial)+"'>&#8629;</button></td></tr>";
+    });
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+    return;
+  }
+
+  var groups = {};
+  inv.forEach(function(i){
+    if(!groups[i.sku]) groups[i.sku]={sku:i.sku,skuCode:i.skuCode||"",total:0,stock:0,dispatched:0,rma:0};
+    groups[i.sku].total++;
+    if(i.status==="in-stock") groups[i.sku].stock++;
+    else if(i.status==="dispatched") groups[i.sku].dispatched++;
+    else if(i.status==="rma") groups[i.sku].rma++;
+  });
+
+  var skus = Object.keys(groups);
+  if(sq) skus = skus.filter(function(k){ return k.toLowerCase().indexOf(sq.toLowerCase())>=0; });
+  if(sf) skus = skus.filter(function(k){
+    if(sf==="in-stock") return groups[k].stock>0;
+    if(sf==="dispatched") return groups[k].dispatched>0;
+    if(sf==="rma") return groups[k].rma>0;
+    return true;
+  });
+  if(!skus.length){ wrap.innerHTML="<div class='empty'>No items found</div>"; return; }
+
+  var rows = skus.map(function(k){
+    var g=groups[k];
+    var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
+    var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
+    var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
+    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3)'>"+esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
+  });
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+}
+
+function renderRMA() {
+  var wrap = document.getElementById("rma-tbl");
+  var items = log.filter(function(l){ return l.type==="rma"; });
+  if(!items.length){ wrap.innerHTML="<div class='empty'>No RMA entries yet</div>"; return; }
+  var rows = items.map(function(i){ return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>"; });
+  wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:130px'>Reason</th><th>Notes</th><th style='width:110px'>Date</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+}
+
+function renderLog() {
+  var wrap = document.getElementById("log-wrap");
+  if(!log.length){ wrap.innerHTML="<div class='empty'>No activity yet</div>"; return; }
+  wrap.innerHTML = log.slice(0,150).map(function(l){ return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>"; }).join("");
+}
+
+function renderRecent() {
+  var wrap = document.getElementById("recent");
+  var recent = log.filter(function(l){ return l.type==="dispatch"; }).slice(0,5);
+  if(!recent.length){ wrap.innerHTML=""; return; }
+  wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){ return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>"; }).join("")+"</div>";
+}
+
+function fd(ts) {
+  if(!ts) return "";
+  var d = new Date(ts);
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+}
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function go(t) {
+  var tabs = ["dispatch","inventory","rma","log"];
+  document.querySelectorAll(".tab").forEach(function(b,i){ b.classList.toggle("active",tabs[i]===t); });
+  document.querySelectorAll(".sec").forEach(function(s){ s.classList.remove("active"); });
+  document.getElementById("sec-"+t).classList.add("active");
+  if(t==="inventory") renderInv(sq);
+}
+
+function setDrill(el) { drillSku = el.getAttribute("data-sku"); renderInv(); }
+function qReturn(el) { document.getElementById("rma-sn").value=el.getAttribute("data-serial"); openM("m-rma"); }
+
+// ── Dispatch ──────────────────────────────────────────────────
+function addS() {
+  var inp = document.getElementById("si");
+  var raw = inp.value.trim().toUpperCase();
+  if(!raw) return;
+  inp.value=""; procS(raw); inp.focus();
+}
+
+function procS(raw) {
+  if(queue.find(function(q){ return q.serial===raw; })){ toast("Already in queue"); return; }
+  var item = inv.find(function(i){ return i.serial.toUpperCase()===raw; });
+  queue.push({serial:raw,item:item,found:!!item});
+  renderQ();
+}
+
+function renderQ() {
+  var wrap = document.getElementById("queue");
+  var btn = document.getElementById("dbtn");
+  if(!queue.length){ wrap.innerHTML=""; btn.disabled=true; return; }
+  btn.disabled = !queue.some(function(q){ return q.found; });
+  wrap.innerHTML = queue.map(function(q,idx){
+    var st = q.found && q.item.status!=="in-stock" ? "<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>" : "";
+    return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
+  }).join("");
+}
+
+function rmQ(i){ queue.splice(i,1); renderQ(); }
+function clrQ(){ queue=[]; renderQ(); }
+
+function doPaste() {
+  var lines = document.getElementById("paste-txt").value.split("\n").map(function(l){ return l.trim().toUpperCase(); }).filter(Boolean);
+  lines.forEach(procS);
+  closeM("m-paste");
+  document.getElementById("paste-txt").value="";
+}
+
+function doDispatch() {
+  var ref = document.getElementById("ref").value.trim();
+  var td = queue.filter(function(q){ return q.found; });
+  if(!td.length) return;
+  setSyncStatus("syncing","saving...");
+  var now = new Date().toISOString();
+  var updates = td.map(function(q){
+    return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",updated_at:now});
+  });
+  var serials = td.map(function(q){ return q.serial; }).join(", ");
+  var msg = "Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
+  updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
+  var nf = queue.filter(function(q){ return !q.found; });
+  if(nf.length) updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
+
+  Promise.all(updates).then(function(){
+    queue=[];
+    document.getElementById("ref").value="";
+    toast(td.length+" unit(s) dispatched");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+}
+
+// ── RMA ───────────────────────────────────────────────────────
+function doRMA() {
+  var serial = document.getElementById("rma-sn").value.trim().toUpperCase();
+  var reason = document.getElementById("rma-reason").value;
+  var notes = document.getElementById("rma-notes").value.trim();
+  if(!serial){ toast("Serial required"); return; }
+  setSyncStatus("syncing","saving...");
+  var now = new Date().toISOString();
+  Promise.all([
+    sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:"rma",updated_at:now}),
+    sbPost("activity_log",{msg:"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":""),type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
+  ]).then(function(){
+    closeM("m-rma");
+    document.getElementById("rma-sn").value="";
+    document.getElementById("rma-notes").value="";
+    toast("Return logged");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); });
+}
+
+// ── Import ────────────────────────────────────────────────────
+function doImport() {
+  var text = document.getElementById("import-txt").value;
+  var defName = document.getElementById("import-sku").value.trim()||"Unknown";
+  if(!text.trim()){ toast("Nothing to import"); return; }
+  var lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+  var items = [], skipped = 0;
+  var existingSerials = {};
+  inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
+
+  lines.forEach(function(line){
+    var parts;
+    if(line.indexOf("\t")>=0){ parts = line.split("\t"); }
+    else {
+      var sm = line.match(/^(.+?)\s{2,}(.+)$/);
+      if(sm){ parts=[sm[1],sm[2]]; } else { parts=line.split(/[,;]+/); }
+    }
+    parts = parts.map(function(p){ return p.trim(); }).filter(Boolean);
+    var name=defName, skuCode="", serial="";
+    if(parts.length>=3){ name=parts[0]; skuCode=parts[1]; serial=parts[2].toUpperCase(); }
+    else if(parts.length===2){ name=parts[0]; serial=parts[1].toUpperCase(); }
+    else if(parts.length===1){ serial=parts[0].toUpperCase(); }
+    if(!serial||serial.length<5||existingSerials[serial]){ skipped++; return; }
+    existingSerials[serial]=true;
+    items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
+  });
+
+  if(!items.length){ toast("No new items to import ("+skipped+" skipped)"); return; }
+  setSyncStatus("syncing","importing "+items.length+"...");
+
+  // Insert in batches of 500
+  var batches = [];
+  for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
+  var chain = Promise.resolve();
+  batches.forEach(function(batch){
+    chain = chain.then(function(){
+      return fetch(SB_URL+"/rest/v1/inventory",{
+        method:"POST",
+        headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
+        body:JSON.stringify(batch)
+      });
+    });
+  });
+
+  chain.then(function(){
+    return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});
+  }).then(function(){
+    closeM("m-import");
+    document.getElementById("import-txt").value="";
+    toast("Imported "+items.length+" items");
+    loadData();
+  }).catch(function(e){ setSyncStatus("err","import failed"); toast("Import error — try again"); });
+}
+
+// ── Add single item ───────────────────────────────────────────
+function doAdd() {
+  var name = document.getElementById("add-name").value.trim();
+  var skuCode = document.getElementById("add-skucode").value.trim();
+  var serial = document.getElementById("add-sn").value.trim().toUpperCase();
+  var notes = document.getElementById("add-notes").value.trim();
+  if(!serial){ toast("Serial required"); return; }
+  setSyncStatus("syncing","saving...");
+  sbPost("inventory",{serial:serial,sku:name||"Unknown",sku_code:skuCode,status:"in-stock",notes:notes,updated_at:new Date().toISOString()})
+  .then(function(r){
+    if(r.status===409){ toast("Serial already exists"); setSyncStatus("ok",inv.length+" units"); return; }
+    return sbPost("activity_log",{msg:"Added: "+name+" — "+serial,ts:new Date().toISOString()});
+  }).then(function(){
+    closeM("m-add");
+    document.getElementById("add-name").value="";
+    document.getElementById("add-skucode").value="";
+    document.getElementById("add-sn").value="";
+    document.getElementById("add-notes").value="";
+    toast("Item added");
+    loadData();
+  }).catch(function(){ setSyncStatus("err","save failed"); });
+}
+
+// ── Export ────────────────────────────────────────────────────
+function exportCSV() {
+  var rows=[["Model","SKU","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){
+    return [i.sku,i.skuCode||"",i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""];
+  }));
+  var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(","); }).join("\n");
+  var a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+  a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";
+  a.click();
+}
+
+function openM(id){ document.getElementById(id).classList.add("open"); }
+function closeM(id){ document.getElementById(id).classList.remove("open"); }
+window.addEventListener("click",function(e){ if(e.target.classList.contains("mbg")) e.target.classList.remove("open"); });
+
+var tt;
+function toast(msg){
+  var t=document.getElementById("toast");
+  t.textContent=msg; t.style.opacity="1";
+  clearTimeout(tt); tt=setTimeout(function(){ t.style.opacity="0"; },2500);
+}
+
+loadData();
+</script>
+</body>
+</html>
+monospace;--sans:"IBM Plex Sans",sans-serif;
   --r:6px;--rl:10px
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
