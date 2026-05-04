@@ -254,13 +254,14 @@ function renderInv(q) {
       var lbl = i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
       var s2=i.serial; return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(s2)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='qReturn(this)' data-serial='"+s2+"'>&#8629;</button></td></tr>";
     });
-    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span><span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+    var skuCodeLabel = items.length>0 && items[0].skuCode ? " <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>" : "";
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
 
   var groups = {};
   inv.forEach(function(i){
-    if(!groups[i.sku]) groups[i.sku]={sku:i.sku,total:0,stock:0,dispatched:0,rma:0};
+    if(!groups[i.sku]) groups[i.sku]={sku:i.sku,skuCode:i.skuCode||"",total:0,stock:0,dispatched:0,rma:0};
     groups[i.sku].total++;
     if(i.status==="in-stock") groups[i.sku].stock++;
     else if(i.status==="dispatched") groups[i.sku].dispatched++;
@@ -282,9 +283,10 @@ function renderInv(q) {
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+k+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
+    var skuCode = g.skuCode || "";
+    return "<tr style='cursor:pointer' onclick='setDrill(this)' data-sku='"+k+"'><td style='font-weight:600;font-size:14px'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3)'>"+esc(skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500'>"+g.total+"</td><td>"+s+"</td><td>"+d+"</td><td>"+r+"</td></tr>";
   });
-  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:100px'>Total</th><th style='width:110px'>In stock</th><th style='width:110px'>Dispatched</th><th style='width:80px'>RMA</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
 
@@ -412,21 +414,18 @@ function doImport() {
     if(line.indexOf("\t")>=0){
       parts = line.split("\t");
     } else {
-      // Try splitting on 2+ spaces (browser may convert tabs to spaces)
       var spaceMatch = line.match(/^(.+?)\s{2,}(.+)$/);
-      if(spaceMatch){
-        parts = [spaceMatch[1], spaceMatch[2]];
-      } else {
-        parts = line.split(/[,;]+/);
-      }
+      if(spaceMatch){ parts = [spaceMatch[1], spaceMatch[2]]; }
+      else { parts = line.split(/[,;]+/); }
     }
     parts = parts.map(function(p){ return p.trim(); }).filter(Boolean);
-    var sku=defSku, serial="";
-    if(parts.length>=2){ sku=parts[0]; serial=parts[1].toUpperCase(); }
+    var name=defSku, skuCode="", serial="";
+    if(parts.length>=3){ name=parts[0]; skuCode=parts[1]; serial=parts[2].toUpperCase(); }
+    else if(parts.length===2){ name=parts[0]; serial=parts[1].toUpperCase(); }
     else if(parts.length===1){ serial=parts[0].toUpperCase(); }
     if(!serial||serial.length<5){ skipped++; return; }
     if(inv.find(function(i){ return i.serial.toUpperCase()===serial; })){ skipped++; return; }
-    inv.push({serial:serial,sku:sku,status:"in-stock",updatedAt:now,notes:""});
+    inv.push({serial:serial,sku:name,skuCode:skuCode,status:"in-stock",updatedAt:now,notes:""});
     added++;
   });
   addLog("Imported "+added+" items ("+skipped+" skipped/duplicate)");
