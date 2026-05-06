@@ -98,8 +98,11 @@ tbody tr:last-child td{border-bottom:none}
 #sync-dot.syncing{background:var(--warn);animation:blink .8s infinite}
 #sync-dot.ok{background:var(--accent)}
 #sync-dot.err{background:var(--danger)}
-/* sn counter badge */
 .sn-counter{display:inline-block;background:var(--accent-dark);color:var(--accent);border:1px solid var(--accent-dim);border-radius:20px;font-size:11px;font-family:var(--mono);padding:1px 8px;margin-left:6px;vertical-align:middle}
+/* RMA reason hint */
+.reason-hint{font-size:11px;margin-top:5px;padding:5px 9px;border-radius:4px;display:none}
+.reason-hint.restock{display:block;background:var(--accent-dark);color:var(--accent);border:1px solid var(--accent-dim)}
+.reason-hint.rma{display:block;background:var(--warn-dark);color:var(--warn);border:1px solid #5a3a00}
 @media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -184,7 +187,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ADD ITEM MODAL — supports bulk serial paste -->
 <div class="mbg" id="m-add">
   <div class="modal">
     <h3>Add item</h3>
@@ -220,16 +222,24 @@ tbody tr:last-child td{border-bottom:none}
   <div class="modal">
     <h3>Log return / RMA</h3>
     <div class="fld"><label>Serial number</label><input id="rma-sn" placeholder="Scan or type serial" style="font-family:var(--mono)"/></div>
-    <div class="fld"><label>Reason</label>
-      <select id="rma-reason" style="width:100%">
-        <option>No cambio</option><option>Re coordinado</option><option>Cancelado</option>
-        <option>Damaged</option><option>Back to stock</option><option>Other</option>
+    <div class="fld">
+      <label>Reason</label>
+      <select id="rma-reason" style="width:100%" onchange="updateReasonHint()">
+        <option value="No cambio">No cambio</option>
+        <option value="Re coordinado">Re coordinado</option>
+        <option value="Cancelado">Cancelado</option>
+        <option value="Back to stock">Back to stock</option>
+        <option value="Damaged">Damaged</option>
+        <option value="Other">Other</option>
       </select>
+      <!-- Live hint showing what will happen -->
+      <div id="reason-hint" class="reason-hint restock">&#10003; Unit will be returned to In Stock</div>
     </div>
     <div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div>
     <div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div>
   </div>
 </div>
+
 <div class="mbg" id="m-paste">
   <div class="modal">
     <h3>Paste multiple serials</h3>
@@ -244,6 +254,9 @@ var SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
 var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
+
+// Reasons that send the unit back to in-stock (vs keeping it flagged as rma)
+var RESTOCK_REASONS = ["No cambio", "Re coordinado", "Cancelado", "Back to stock"];
 
 // ── Supabase helpers ──────────────────────────────────────────
 function sbGet(table, params) {
@@ -470,22 +483,41 @@ function doDispatch() {
   }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
 }
 
-// ── RMA ───────────────────────────────────────────────────────
+// ── RMA reason hint ───────────────────────────────────────────
+function updateReasonHint() {
+  var reason = document.getElementById("rma-reason").value;
+  var hint = document.getElementById("reason-hint");
+  var isRestock = RESTOCK_REASONS.indexOf(reason) >= 0;
+  hint.className = "reason-hint " + (isRestock ? "restock" : "rma");
+  hint.textContent = isRestock
+    ? "✓ Unit will be returned to In Stock"
+    : "⚠ Unit will remain flagged as RMA";
+}
+
+// ── RMA (FIXED) ───────────────────────────────────────────────
 function doRMA() {
   var serial = document.getElementById("rma-sn").value.trim().toUpperCase();
   var reason = document.getElementById("rma-reason").value;
-  var notes = document.getElementById("rma-notes").value.trim();
+  var notes  = document.getElementById("rma-notes").value.trim();
   if(!serial){ toast("Serial required"); return; }
+
+  // Determine new status based on reason
+  var newStatus = RESTOCK_REASONS.indexOf(reason) >= 0 ? "in-stock" : "rma";
+
   setSyncStatus("syncing","saving...");
   var now = new Date().toISOString();
+  var logMsg = newStatus === "in-stock"
+    ? "Returned to stock: " + serial + " — " + reason + (notes ? " (" + notes + ")" : "")
+    : "RMA: " + serial + " — " + reason + (notes ? " (" + notes + ")" : "");
+
   Promise.all([
-    sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:"rma",updated_at:now}),
-    sbPost("activity_log",{msg:"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":""),type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
+    sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),
+    sbPost("activity_log",{msg:logMsg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
   ]).then(function(){
     closeM("m-rma");
     document.getElementById("rma-sn").value="";
     document.getElementById("rma-notes").value="";
-    toast("Return logged");
+    toast(newStatus === "in-stock" ? "✓ Unit returned to stock" : "RMA logged");
     loadData();
   }).catch(function(){ setSyncStatus("err","save failed"); });
 }
@@ -566,7 +598,6 @@ function doAdd() {
   if(!rawLines.length){ toast("Enter at least one serial number"); return; }
   if(!name){ toast("Model name is required"); return; }
 
-  // Deduplicate against existing inventory
   var existingSerials = {};
   inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
 
@@ -586,7 +617,6 @@ function doAdd() {
 
   setSyncStatus("syncing","saving "+items.length+"...");
 
-  // Batch insert (500 per request)
   var batches = [];
   for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
   var chain = Promise.resolve();
@@ -629,8 +659,8 @@ function exportCSV() {
 
 function openM(id){
   document.getElementById(id).classList.add("open");
-  // Reset SN counter when opening add modal
   if(id==="m-add") document.getElementById("add-sn-count").style.display="none";
+  if(id==="m-rma") updateReasonHint();
 }
 function closeM(id){ document.getElementById(id).classList.remove("open"); }
 window.addEventListener("click",function(e){ if(e.target.classList.contains("mbg")) e.target.classList.remove("open"); });
