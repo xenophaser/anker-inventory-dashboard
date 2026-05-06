@@ -203,9 +203,9 @@ tbody tr:last-child td{border-bottom:none}
     <div class="fld">
       <label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label>
       <textarea id="add-sn-bulk" rows="8"
-        placeholder="Paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;AZVABY0F15400138&#10;…"
+        placeholder="Optional — paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;AZVABY0F15400138&#10;…&#10;&#10;Leave blank to add the model without serials."
         oninput="updateSNCount()"></textarea>
-      <div class="hint">Paste as many as needed. Duplicates are skipped automatically.</div>
+      <div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div>
     </div>
     <div class="fld">
       <label>Notes (optional)</label>
@@ -595,11 +595,41 @@ function doAdd() {
   var rawLines = document.getElementById("add-sn-bulk").value
     .split("\n").map(function(l){ return l.trim().toUpperCase(); }).filter(Boolean);
 
-  if(!rawLines.length){ toast("Enter at least one serial number"); return; }
-  if(!name){ toast("Model name is required"); return; }
+  // Only require name OR skuCode — serials are optional
+  if(!name && !skuCode){ toast("Enter a model name or SKU"); return; }
 
+  // If no label provided, fall back to SKU as the display name
+  var displayName = name || skuCode;
+
+  var now = new Date().toISOString();
   var existingSerials = {};
   inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
+
+  // No-serial path: add a placeholder entry so the model appears in inventory
+  if(!rawLines.length){
+    var placeholder = {
+      serial: "NO-SN-" + displayName.replace(/\s+/g,"-").toUpperCase() + "-" + Date.now(),
+      sku: displayName, sku_code: skuCode, status: "in-stock", notes: notes, updated_at: now
+    };
+    setSyncStatus("syncing","saving...");
+    fetch(SB_URL+"/rest/v1/inventory",{
+      method:"POST",
+      headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
+      body:JSON.stringify([placeholder])
+    }).then(function(){
+      return sbPost("activity_log",{msg:"Added model (no serial): "+displayName+(skuCode?" ["+skuCode+"]":""),ts:now});
+    }).then(function(){
+      closeM("m-add");
+      document.getElementById("add-name").value="";
+      document.getElementById("add-skucode").value="";
+      document.getElementById("add-sn-bulk").value="";
+      document.getElementById("add-notes").value="";
+      document.getElementById("add-sn-count").style.display="none";
+      toast("Model added — serials can be added later");
+      loadData();
+    }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+    return;
+  }
 
   var items = [], skipped = 0;
   var seen = {};
@@ -607,7 +637,7 @@ function doAdd() {
     if(sn.length < 5){ skipped++; return; }
     if(existingSerials[sn] || seen[sn]){ skipped++; return; }
     seen[sn] = true;
-    items.push({serial:sn, sku:name, sku_code:skuCode, status:"in-stock", notes:notes, updated_at:new Date().toISOString()});
+    items.push({serial:sn, sku:displayName, sku_code:skuCode, status:"in-stock", notes:notes, updated_at:now});
   });
 
   if(!items.length){
@@ -631,7 +661,7 @@ function doAdd() {
   });
 
   chain.then(function(){
-    var msg = "Added "+items.length+" unit(s) — "+name+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");
+    var msg = "Added "+items.length+" unit(s) — "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");
     return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});
   }).then(function(){
     closeM("m-add");
