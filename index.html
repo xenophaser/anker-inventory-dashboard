@@ -119,7 +119,19 @@ tbody tr:last-child td{border-bottom:none}
 /* ── Read-only overlay on action buttons ── */
 .readonly-btn{opacity:.35;cursor:not-allowed !important;pointer-events:none}
 
-@media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}}
+/* ── AI Panel ── */
+#ai-panel{position:fixed;bottom:0;right:24px;width:340px;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:100;display:none;flex-direction:column}
+#ai-panel.open{display:flex}
+#ai-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent)}
+#ai-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:320px;min-height:200px}
+.ai-msg{padding:8px 12px;border-radius:var(--r);font-size:12px;line-height:1.5;max-width:90%}
+.ai-msg.user{background:var(--accent-dim);color:var(--text);align-self:flex-end}
+.ai-msg.assistant{background:var(--surface2);color:var(--text);align-self:flex-start;border:1px solid var(--border)}
+.ai-msg.system{background:transparent;color:var(--text3);align-self:center;font-style:italic;font-size:11px}
+#ai-input-row{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border)}
+#ai-input{flex:1;font-size:12px;padding:7px 10px}
+#ai-send{padding:7px 12px;font-size:12px}
+@media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}#ai-panel{width:100%;right:0;border-radius:var(--rl) var(--rl) 0 0}}
 </style>
 </head>
 <body>
@@ -129,6 +141,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="hdr-btns">
     <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
     <button id="lock-btn" class="lock-badge" onclick="handleLockClick()">🔒 View only</button>
+    <button class="lock-badge" onclick="toggleAI()" id="ai-btn">✦ AI</button>
     <button id="btn-add" class="btn sm gh" onclick="guardAction(function(){ openM('m-add'); })">+ Add item</button>
     <button id="btn-import" class="btn sm gh" onclick="guardAction(function(){ openM('m-import'); })">Import list</button>
     <button class="btn sm pri" onclick="exportCSV()">Export CSV</button>
@@ -192,6 +205,21 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card"><div id="log-wrap"></div></div>
   </div>
 </main>
+
+<!-- AI PANEL -->
+<div id="ai-panel">
+  <div id="ai-panel-hdr">
+    <span>✦ Warehouse AI</span>
+    <button class="btn sm gh" onclick="toggleAI()" style="padding:2px 8px;font-size:11px">✕</button>
+  </div>
+  <div id="ai-messages">
+    <div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div>
+  </div>
+  <div id="ai-input-row">
+    <input id="ai-input" type="text" placeholder="e.g. Add C300X, SKU A17231111…" onkeydown="if(event.key==='Enter')sendAI()"/>
+    <button class="btn pri sm" id="ai-send" onclick="sendAI()">Send</button>
+  </div>
+</div>
 
 <!-- PASSWORD MODAL -->
 <div class="mbg" id="m-lock">
@@ -359,7 +387,7 @@ async function submitLock() {
     var res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: pw })
+      body: JSON.stringify({ action: "auth", password: pw })
     });
     var data = await res.json();
     document.getElementById("lock-spinner").style.display = "none";
@@ -821,6 +849,70 @@ function toast(msg){
   var t=document.getElementById("toast");
   t.textContent=msg; t.style.opacity="1";
   clearTimeout(tt); tt=setTimeout(function(){ t.style.opacity="0"; },2500);
+}
+
+// ── AI Assistant ──────────────────────────────────────────────
+var aiHistory = [];
+
+function toggleAI() {
+  var panel = document.getElementById('ai-panel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) {
+    document.getElementById('ai-input').focus();
+  }
+}
+
+async function sendAI() {
+  var input = document.getElementById('ai-input');
+  var msg = input.value.trim();
+  if(!msg) return;
+
+  appendAIMsg(msg, 'user');
+  input.value = '';
+  document.getElementById('ai-send').disabled = true;
+
+  var thinking = appendAIMsg('Thinking…', 'system');
+
+  try {
+    var res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'chat', message: msg, history: aiHistory })
+    });
+    var data = await res.json();
+
+    thinking.remove();
+
+    if(data.error) {
+      appendAIMsg('Error: ' + data.error, 'system');
+    } else {
+      appendAIMsg(data.reply, 'assistant');
+      aiHistory.push({ role: 'user', content: msg });
+      aiHistory.push({ role: 'assistant', content: data.reply });
+      // Keep history to last 10 exchanges
+      if(aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
+      // Reload data if changes were made
+      if(data.commandCount > 0) {
+        setTimeout(loadData, 500);
+      }
+    }
+  } catch(e) {
+    thinking.remove();
+    appendAIMsg('Connection error — try again', 'system');
+  }
+
+  document.getElementById('ai-send').disabled = false;
+  document.getElementById('ai-input').focus();
+}
+
+function appendAIMsg(text, role) {
+  var wrap = document.getElementById('ai-messages');
+  var div = document.createElement('div');
+  div.className = 'ai-msg ' + role;
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div;
 }
 
 // Init
