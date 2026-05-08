@@ -66,14 +66,18 @@ Rules:
       });
 
       const data = await response.json();
-      const text = data.content?.[0]?.text || '{}';
+      const text = data.content?.[0]?.text || '';
+
+      if (!text) {
+        return res.status(200).json({ reply: 'No response from AI — try again.', results: [], commandCount: 0 });
+      }
 
       let parsed;
       try {
         const clean = text.replace(/```json|```/g, '').trim();
         parsed = JSON.parse(clean);
-      } catch {
-        return res.status(200).json({ reply: text, commands: [] });
+      } catch(e) {
+        parsed = { reply: text, commands: [] };
       }
 
       // Execute commands against Supabase
@@ -103,12 +107,12 @@ Rules:
       }
 
       return res.status(200).json({
-        reply: parsed.reply,
+        reply: parsed.reply || text,
         results,
         commandCount: (parsed.commands || []).length
       });
 
-    } catch (e) {
+    } catch(e) {
       return res.status(500).json({ error: 'AI request failed: ' + e.message });
     }
   }
