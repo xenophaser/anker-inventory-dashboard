@@ -66,6 +66,7 @@ Rules:
       });
 
       const data = await response.json();
+      console.log('ANTHROPIC RAW:', JSON.stringify(data)); // ← DEBUG LINE
       const text = data.content?.[0]?.text || '';
 
       if (!text) {
@@ -80,7 +81,6 @@ Rules:
         parsed = { reply: text, commands: [] };
       }
 
-      // Execute commands against Supabase
       const results = [];
       for (const cmd of (parsed.commands || [])) {
         const url = `${SB_URL}/rest/v1/${cmd.table}${cmd.match ? '?' + cmd.match : ''}`;
