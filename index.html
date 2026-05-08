@@ -136,6 +136,19 @@ tbody tr:last-child td{border-bottom:none}
 .cb-row label{cursor:pointer;flex:1}
 .sel-count{font-size:12px;color:var(--accent);font-family:var(--mono);margin-left:8px}
 
+/* ── Print styles ── */
+@media print {
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area { position: fixed; inset: 0; background: #fff; color: #000; padding: 2rem; font-family: Arial, sans-serif; }
+  #print-area h2 { font-size: 18px; margin-bottom: 4px; }
+  #print-area .print-meta { font-size: 12px; color: #555; margin-bottom: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 8px; }
+  #print-area table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #print-area th { text-align: left; border-bottom: 2px solid #000; padding: 6px 8px; font-size: 11px; text-transform: uppercase; }
+  #print-area td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+  #print-area .print-footer { margin-top: 2rem; font-size: 11px; color: #888; }
+}
+
 /* ── AI Panel ── */
 #ai-panel{position:fixed;bottom:0;right:24px;width:340px;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:100;display:none;flex-direction:column}
 #ai-panel.open{display:flex}
@@ -386,6 +399,9 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- PRINT AREA (hidden, used for printing) -->
+<div id="print-area" style="display:none"></div>
+
 <!-- CREATE SHIPMENT MODAL -->
 <div class="mbg" id="m-shipment">
   <div class="modal" style="width:520px">
@@ -632,6 +648,8 @@ function renderShipments(){
       +"</div>"
       +"<div class='shipment-actions'>"
         +"<button class='btn sm gh' onclick='exportShipmentCSV("+JSON.stringify(s).replace(/"/g,"&quot;")+")'>Export CSV</button>"
+        +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", false)'>🖨 Shipping list</button>"
+        +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", true)'>🖨 Full report</button>"
       +"</div>"
     +"</div>";
   }).join("");
@@ -705,6 +723,58 @@ function exportShipmentCSV(shipment){
   a.download="shipment_"+dest.replace(/\s+/g,"_")+"_"+date+".csv";
   a.click();
   toast("CSV exported ✓");
+}
+
+function printShipment(shipment, fullReport){
+  var serials=[];
+  try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
+  var dest=shipment.destination||"Outbound Shipment";
+  var date=shipment.shipped_at?new Date(shipment.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";
+  var notes=shipment.notes||"";
+  var printArea=document.getElementById("print-area");
+
+  if(fullReport){
+    // Full report with all details
+    var rows=serials.map(function(sn){
+      var unit=rmaIncoming.find(function(u){return u.serial===sn;});
+      if(unit){
+        return "<tr><td style='font-family:monospace'>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
+      }
+      return "<tr><td style='font-family:monospace'>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+    }).join("");
+    printArea.innerHTML=
+      "<h2>Windmar · Anker Warehouse — Shipment Report</h2>"
+      +"<div class='print-meta'>"
+        +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
+        +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
+        +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
+        +"<strong>Total units:</strong> "+serials.length
+      +"</div>"
+      +"<table>"
+        +"<thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead>"
+        +"<tbody>"+rows+"</tbody>"
+      +"</table>"
+      +"<div class='print-footer'>Printed "+new Date().toLocaleString()+" · Windmar Anker Warehouse</div>";
+  } else {
+    // Minimal shipping list
+    var rows=serials.map(function(sn,i){
+      return "<tr><td>"+(i+1)+"</td><td style='font-family:monospace'>"+esc(sn)+"</td></tr>";
+    }).join("");
+    printArea.innerHTML=
+      "<h2>Windmar · Anker Warehouse — Shipping List</h2>"
+      +"<div class='print-meta'>"
+        +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
+        +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
+        +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
+        +"<strong>Total units:</strong> "+serials.length
+      +"</div>"
+      +"<table>"
+        +"<thead><tr><th style='width:40px'>#</th><th>Serial Number</th></tr></thead>"
+        +"<tbody>"+rows+"</tbody>"
+      +"</table>"
+      +"<div class='print-footer'>Printed "+new Date().toLocaleString()+" · Windmar Anker Warehouse</div>";
+  }
+  window.print();
 }
 
 // ── RMA sub-tabs ──────────────────────────────────────────────
