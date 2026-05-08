@@ -731,50 +731,49 @@ function printShipment(shipment, fullReport){
   var dest=shipment.destination||"Outbound Shipment";
   var date=shipment.shipped_at?new Date(shipment.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";
   var notes=shipment.notes||"";
-  var printArea=document.getElementById("print-area");
 
+  var tableHTML="";
   if(fullReport){
-    // Full report with all details
     var rows=serials.map(function(sn){
       var unit=rmaIncoming.find(function(u){return u.serial===sn;});
       if(unit){
-        return "<tr><td style='font-family:monospace'>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
+        return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
       }
-      return "<tr><td style='font-family:monospace'>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
+      return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
     }).join("");
-    printArea.innerHTML=
-      "<h2>Windmar · Anker Warehouse — Shipment Report</h2>"
-      +"<div class='print-meta'>"
-        +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
-        +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
-        +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
-        +"<strong>Total units:</strong> "+serials.length
-      +"</div>"
-      +"<table>"
-        +"<thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead>"
-        +"<tbody>"+rows+"</tbody>"
-      +"</table>"
-      +"<div class='print-footer'>Printed "+new Date().toLocaleString()+" · Windmar Anker Warehouse</div>";
+    tableHTML="<table><thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead><tbody>"+rows+"</tbody></table>";
   } else {
-    // Minimal shipping list
     var rows=serials.map(function(sn,i){
-      return "<tr><td>"+(i+1)+"</td><td style='font-family:monospace'>"+esc(sn)+"</td></tr>";
+      return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";
     }).join("");
-    printArea.innerHTML=
-      "<h2>Windmar · Anker Warehouse — Shipping List</h2>"
-      +"<div class='print-meta'>"
-        +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
-        +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
-        +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
-        +"<strong>Total units:</strong> "+serials.length
-      +"</div>"
-      +"<table>"
-        +"<thead><tr><th style='width:40px'>#</th><th>Serial Number</th></tr></thead>"
-        +"<tbody>"+rows+"</tbody>"
-      +"</table>"
-      +"<div class='print-footer'>Printed "+new Date().toLocaleString()+" · Windmar Anker Warehouse</div>";
+    tableHTML="<table><thead><tr><th>#</th><th>Serial Number</th></tr></thead><tbody>"+rows+"</tbody></table>";
   }
-  window.print();
+
+  var title=fullReport?"Shipment Report":"Shipping List";
+  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>"
+    +"body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}"
+    +"h2{font-size:18px;margin-bottom:4px}"
+    +".meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}"
+    +"table{width:100%;border-collapse:collapse;font-size:12px}"
+    +"th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}"
+    +"td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}"
+    +".footer{margin-top:2rem;font-size:11px;color:#aaa}"
+    +"</style></head><body>"
+    +"<h2>Windmar &middot; Anker Warehouse &mdash; "+title+"</h2>"
+    +"<div class='meta'>"
+      +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
+      +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
+      +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
+      +"<strong>Total units:</strong> "+serials.length
+    +"</div>"
+    +tableHTML
+    +"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div>"
+    +"<script>window.onload=function(){window.print();}<\/script>"
+    +"</body></html>";
+
+  var w=window.open("","_blank","width=900,height=700");
+  w.document.write(html);
+  w.document.close();
 }
 
 // ── RMA sub-tabs ──────────────────────────────────────────────
