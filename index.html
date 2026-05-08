@@ -73,6 +73,8 @@ tbody tr:last-child td{border-bottom:none}
 .badge.in-stock{background:var(--accent-dark);color:var(--accent)}
 .badge.dispatched{background:var(--danger-dark);color:var(--danger)}
 .badge.rma{background:var(--warn-dark);color:var(--warn)}
+.badge.waiting{background:var(--warn-dark);color:var(--warn)}
+.badge.shipped{background:#1a1a2a;color:#7788cc}
 .sec{display:none}.sec.active{display:block}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .mbg.open{display:flex}
@@ -102,22 +104,37 @@ tbody tr:last-child td{border-bottom:none}
 .reason-hint{font-size:11px;margin-top:5px;padding:5px 9px;border-radius:4px;display:none}
 .reason-hint.restock{display:block;background:var(--accent-dark);color:var(--accent);border:1px solid var(--accent-dim)}
 .reason-hint.rma{display:block;background:var(--warn-dark);color:var(--warn);border:1px solid #5a3a00}
-
-/* ── Lock badge ── */
 .lock-badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);color:var(--text3);background:transparent;cursor:pointer;transition:all .15s}
 .lock-badge:hover{border-color:var(--accent);color:var(--accent)}
 .lock-badge.unlocked{color:var(--accent);border-color:var(--accent-dim)}
-
-/* ── Password modal ── */
 #m-lock .modal{width:360px}
 #m-lock .modal h3{text-align:center;font-size:16px;margin-bottom:.5rem}
 #lock-subtitle{text-align:center;font-size:12px;color:var(--text3);margin-bottom:1.25rem}
 #lock-pw{width:100%;text-align:center;letter-spacing:.1em;font-family:var(--mono);font-size:15px}
 #lock-err{font-size:12px;color:var(--danger);text-align:center;margin-top:8px;min-height:18px}
 #lock-spinner{display:none;text-align:center;font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:8px}
-
-/* ── Read-only overlay on action buttons ── */
 .readonly-btn{opacity:.35;cursor:not-allowed !important;pointer-events:none}
+
+/* ── RMA Sub-tabs ── */
+.rma-subtabs{display:flex;gap:2px;background:var(--surface);padding:3px;border-radius:var(--r);width:fit-content;border:1px solid var(--border)}
+.rma-subtab{padding:5px 14px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:12px;font-family:var(--sans);color:var(--text2);transition:all .15s}
+.rma-subtab.active{background:var(--surface2);color:var(--text);font-weight:500}
+.rma-subtab:hover:not(.active){color:var(--text);background:var(--surface2)}
+.rma-subsec{display:none}.rma-subsec.active{display:block}
+
+/* ── Shipment cards ── */
+.shipment-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.shipment-info{flex:1}
+.shipment-title{font-weight:600;font-size:14px;margin-bottom:3px}
+.shipment-meta{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.shipment-actions{display:flex;gap:6px}
+
+/* ── Shipment picker checkboxes ── */
+.cb-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px}
+.cb-row:last-child{border:none}
+.cb-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+.cb-row label{cursor:pointer;flex:1}
+.sel-count{font-size:12px;color:var(--accent);font-family:var(--mono);margin-left:8px}
 
 /* ── AI Panel ── */
 #ai-panel{position:fixed;bottom:0;right:24px;width:340px;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:100;display:none;flex-direction:column}
@@ -161,6 +178,7 @@ tbody tr:last-child td{border-bottom:none}
     <button class="tab" onclick="go('log')">Activity log</button>
   </div>
 
+  <!-- DISPATCH TAB -->
   <div class="sec active" id="sec-dispatch">
     <div class="card">
       <div class="card-title">Quick dispatch</div>
@@ -181,6 +199,7 @@ tbody tr:last-child td{border-bottom:none}
     <div id="recent"></div>
   </div>
 
+  <!-- INVENTORY TAB -->
   <div class="sec" id="sec-inventory">
     <div class="sr">
       <input type="text" placeholder="Search serial, model…" oninput="renderInv(this.value)"/>
@@ -194,13 +213,42 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
   </div>
 
+  <!-- RMA TAB -->
   <div class="sec" id="sec-rma">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
-      <button class="btn" onclick="guardAction(function(){ openM('m-rma'); })">+ Log return</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <div class="rma-subtabs">
+        <button class="rma-subtab active" onclick="goRMASub('returns')">Returns log</button>
+        <button class="rma-subtab" onclick="goRMASub('incoming')">Incoming damaged</button>
+        <button class="rma-subtab" onclick="goRMASub('shipments')">Shipments</button>
+      </div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="rma-tbl"></div></div>
+
+    <!-- Returns log -->
+    <div class="rma-subsec active" id="rmasub-returns">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
+        <button class="btn" onclick="guardAction(function(){ openM('m-rma'); })">+ Log return</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="rma-tbl"></div></div>
+    </div>
+
+    <!-- Incoming damaged -->
+    <div class="rma-subsec" id="rmasub-incoming">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
+        <button class="btn pri sm" onclick="guardAction(function(){ openM('m-incoming'); })">+ Log incoming unit</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="incoming-tbl"></div></div>
+    </div>
+
+    <!-- Shipments -->
+    <div class="rma-subsec" id="rmasub-shipments">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
+        <button class="btn pri sm" onclick="guardAction(function(){ openM('m-shipment'); loadShipmentPicker(); })">+ Create shipment</button>
+      </div>
+      <div id="shipments-list"></div>
+    </div>
   </div>
 
+  <!-- LOG TAB -->
   <div class="sec" id="sec-log">
     <div class="card"><div id="log-wrap"></div></div>
   </div>
@@ -226,9 +274,7 @@ tbody tr:last-child td{border-bottom:none}
   <div class="modal">
     <h3>🔐 Editor access</h3>
     <p id="lock-subtitle">Enter the password to unlock editing</p>
-    <div class="fld">
-      <input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/>
-    </div>
+    <div class="fld"><input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/></div>
     <div id="lock-err"></div>
     <div id="lock-spinner">Verifying…</div>
     <div class="ma">
@@ -238,7 +284,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- MODALS -->
+<!-- IMPORT MODAL -->
 <div class="mbg" id="m-import">
   <div class="modal">
     <h3>Import inventory list</h3>
@@ -249,6 +295,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- ADD ITEM MODAL -->
 <div class="mbg" id="m-add">
   <div class="modal">
     <h3>Add item</h3>
@@ -258,9 +305,7 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="fld">
       <label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label>
-      <textarea id="add-sn-bulk" rows="8"
-        placeholder="Optional — paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;…&#10;&#10;Leave blank to add the model without serials."
-        oninput="updateSNCount()"></textarea>
+      <textarea id="add-sn-bulk" rows="8" placeholder="Optional — paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;…&#10;&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea>
       <div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div>
     </div>
     <div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div>
@@ -271,6 +316,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- RMA MODAL -->
 <div class="mbg" id="m-rma">
   <div class="modal">
     <h3>Log return / RMA</h3>
@@ -292,6 +338,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- EDIT MODEL MODAL -->
 <div class="mbg" id="m-edit">
   <div class="modal">
     <h3>Edit model</h3>
@@ -306,11 +353,58 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- PASTE SERIALS MODAL -->
 <div class="mbg" id="m-paste">
   <div class="modal">
     <h3>Paste multiple serials</h3>
     <div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775&#10;LSVN0120230708000471"></textarea></div>
     <div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div>
+  </div>
+</div>
+
+<!-- LOG INCOMING DAMAGED UNIT MODAL -->
+<div class="mbg" id="m-incoming">
+  <div class="modal">
+    <h3>📥 Log incoming damaged unit</h3>
+    <div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div>
+    <div class="fld">
+      <label>Condition</label>
+      <select id="inc-condition" style="width:100%">
+        <option value="Damaged">Damaged</option>
+        <option value="Defective">Defective</option>
+        <option value="Wrong item">Wrong item</option>
+        <option value="Incomplete">Incomplete</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="fld"><label>Customer / Order ref</label><input id="inc-ref" placeholder="e.g. Order #12345 or customer name"/></div>
+    <div class="fld"><label>Notes (optional)</label><input id="inc-notes" placeholder="e.g. cracked screen, missing cables"/></div>
+    <div class="ma">
+      <button class="btn" onclick="closeM('m-incoming')">Cancel</button>
+      <button class="btn pri" onclick="doLogIncoming()">Log unit</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE SHIPMENT MODAL -->
+<div class="mbg" id="m-shipment">
+  <div class="modal" style="width:520px">
+    <h3>📦 Create outbound shipment</h3>
+    <div class="fld-row">
+      <div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div>
+      <div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div>
+    </div>
+    <div class="fld"><label>Notes (optional)</label><input id="ship-notes" placeholder="e.g. Container #, tracking #"/></div>
+    <div class="fld">
+      <label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label>
+      <div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px">
+        <div class="empty">Loading waiting units…</div>
+      </div>
+    </div>
+    <div class="ma">
+      <button class="btn" onclick="closeM('m-shipment')">Cancel</button>
+      <button class="btn pri" onclick="doCreateShipment()">Create shipment</button>
+    </div>
   </div>
 </div>
 
@@ -320,192 +414,126 @@ var SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
 var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
-var RESTOCK_REASONS = ["No cambio", "Re coordinado", "Cancelado", "Back to stock"];
+var rmaIncoming = [], rmaShipments = [];
+var RESTOCK_REASONS = ["No cambio","Re coordinado","Cancelado","Back to stock"];
 
-// ── Auth state (sessionStorage only) ─────────────────────────
+// ── Auth ──────────────────────────────────────────────────────
 var SESSION_KEY = "wm_edit_unlocked";
 var pendingAction = null;
-
-function isUnlocked() {
-  return sessionStorage.getItem(SESSION_KEY) === "1";
-}
-
-function setUnlocked(val) {
-  if(val) {
-    sessionStorage.setItem(SESSION_KEY, "1");
-  } else {
-    sessionStorage.removeItem(SESSION_KEY);
-  }
+function isUnlocked(){ return sessionStorage.getItem(SESSION_KEY)==="1"; }
+function setUnlocked(val){
+  if(val) sessionStorage.setItem(SESSION_KEY,"1"); else sessionStorage.removeItem(SESSION_KEY);
   updateLockUI();
 }
-
-function updateLockUI() {
-  var btn = document.getElementById("lock-btn");
-  if(isUnlocked()) {
-    btn.textContent = "🔓 Editor";
-    btn.classList.add("unlocked");
-  } else {
-    btn.textContent = "🔒 View only";
-    btn.classList.remove("unlocked");
-  }
+function updateLockUI(){
+  var btn=document.getElementById("lock-btn");
+  if(isUnlocked()){ btn.textContent="🔓 Editor"; btn.classList.add("unlocked"); }
+  else { btn.textContent="🔒 View only"; btn.classList.remove("unlocked"); }
 }
-
-function handleLockClick() {
-  if(isUnlocked()) {
-    setUnlocked(false);
-    toast("Locked — view only");
-  } else {
-    pendingAction = null;
-    openLock();
-  }
+function handleLockClick(){
+  if(isUnlocked()){ setUnlocked(false); toast("Locked — view only"); }
+  else { pendingAction=null; openLock(); }
 }
-
-function openLock() {
-  document.getElementById("lock-pw").value = "";
-  document.getElementById("lock-err").textContent = "";
-  document.getElementById("lock-spinner").style.display = "none";
+function openLock(){
+  document.getElementById("lock-pw").value="";
+  document.getElementById("lock-err").textContent="";
+  document.getElementById("lock-spinner").style.display="none";
   openM("m-lock");
-  setTimeout(function(){ document.getElementById("lock-pw").focus(); }, 100);
+  setTimeout(function(){ document.getElementById("lock-pw").focus(); },100);
 }
-
-function guardAction(fn) {
-  if(isUnlocked()) {
-    fn();
-  } else {
-    pendingAction = fn;
-    openLock();
-  }
-}
-
-async function submitLock() {
-  var pw = document.getElementById("lock-pw").value;
+function guardAction(fn){ if(isUnlocked()) fn(); else { pendingAction=fn; openLock(); } }
+async function submitLock(){
+  var pw=document.getElementById("lock-pw").value;
   if(!pw) return;
-  document.getElementById("lock-err").textContent = "";
-  document.getElementById("lock-spinner").style.display = "block";
-
+  document.getElementById("lock-err").textContent="";
+  document.getElementById("lock-spinner").style.display="block";
   try {
-    var res = await fetch("/api/auth", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "auth", password: pw })
-    });
-    var data = await res.json();
-    document.getElementById("lock-spinner").style.display = "none";
-
-    if(data.ok) {
-      setUnlocked(true);
-      closeM("m-lock");
-      toast("✓ Unlocked — editing enabled");
-      if(pendingAction) {
-        var fn = pendingAction;
-        pendingAction = null;
-        setTimeout(fn, 150);
-      }
+    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"auth",password:pw})});
+    var data=await res.json();
+    document.getElementById("lock-spinner").style.display="none";
+    if(data.ok){
+      setUnlocked(true); closeM("m-lock"); toast("✓ Unlocked — editing enabled");
+      if(pendingAction){ var fn=pendingAction; pendingAction=null; setTimeout(fn,150); }
     } else {
-      document.getElementById("lock-err").textContent = "Wrong password — try again";
-      document.getElementById("lock-pw").value = "";
-      document.getElementById("lock-pw").focus();
+      document.getElementById("lock-err").textContent="Wrong password — try again";
+      document.getElementById("lock-pw").value=""; document.getElementById("lock-pw").focus();
     }
-  } catch(e) {
-    document.getElementById("lock-spinner").style.display = "none";
-    document.getElementById("lock-err").textContent = "Connection error — try again";
+  } catch(e){
+    document.getElementById("lock-spinner").style.display="none";
+    document.getElementById("lock-err").textContent="Connection error — try again";
   }
 }
 
 // ── Supabase helpers ──────────────────────────────────────────
-function sbGet(table, params) {
-  var url = SB_URL + "/rest/v1/" + table + "?" + (params||"order=updated_at.desc&limit=2000");
-  return fetch(url, {headers: HEADERS}).then(function(r){ return r.json(); });
+function sbGet(table,params){
+  return fetch(SB_URL+"/rest/v1/"+table+"?"+(params||"order=updated_at.desc&limit=2000"),{headers:HEADERS}).then(function(r){return r.json();});
 }
-function sbPost(table, data) {
-  return fetch(SB_URL + "/rest/v1/" + table, {
-    method: "POST", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
-    body: JSON.stringify(data)
-  });
+function sbPost(table,data){
+  return fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
 }
-function sbPatch(table, match, data) {
-  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
-    method: "PATCH", headers: Object.assign({}, HEADERS, {"Prefer":"return=minimal"}),
-    body: JSON.stringify(data)
-  });
-}
-function sbDelete(table, match) {
-  return fetch(SB_URL + "/rest/v1/" + table + "?" + match, {
-    method: "DELETE", headers: HEADERS
-  });
+function sbPatch(table,match,data){
+  return fetch(SB_URL+"/rest/v1/"+table+"?"+match,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
 }
 
 // ── Sync indicator ────────────────────────────────────────────
-function setSyncStatus(s, label) {
-  var dot = document.getElementById("sync-dot");
-  var lbl = document.getElementById("sync-label");
-  dot.className = s;
-  lbl.textContent = label;
+function setSyncStatus(s,label){
+  document.getElementById("sync-dot").className=s;
+  document.getElementById("sync-label").textContent=label;
 }
 
 // ── Load data ─────────────────────────────────────────────────
-function fetchAllInventory(offset, accumulated) {
-  offset = offset || 0;
-  accumulated = accumulated || [];
-  var url = SB_URL + "/rest/v1/inventory?order=sku.asc&limit=1000&offset=" + offset;
-  return fetch(url, {headers: HEADERS}).then(function(r){ return r.json(); }).then(function(rows){
-    accumulated = accumulated.concat(rows);
-    if(rows.length === 1000) return fetchAllInventory(offset + 1000, accumulated);
-    return accumulated;
-  });
+function fetchAllInventory(offset,accumulated){
+  offset=offset||0; accumulated=accumulated||[];
+  return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=1000&offset="+offset,{headers:HEADERS})
+    .then(function(r){return r.json();}).then(function(rows){
+      accumulated=accumulated.concat(rows);
+      if(rows.length===1000) return fetchAllInventory(offset+1000,accumulated);
+      return accumulated;
+    });
 }
-
-function loadData() {
-  setSyncStatus("syncing", "loading...");
+function loadData(){
+  setSyncStatus("syncing","loading...");
   Promise.all([
     fetchAllInventory(),
-    sbGet("activity_log", "order=ts.desc&limit=300")
-  ]).then(function(results) {
-    inv = results[0].map(function(r){ return {
-      serial: r.serial, sku: r.sku, skuCode: r.sku_code||"",
-      status: r.status, ref: r.ref||"", notes: r.notes||"",
-      updatedAt: r.updated_at
-    }; });
-    log = results[1].map(function(r){ return {
-      ts: r.ts, msg: r.msg, type: r.type||"",
-      serial: r.serial||"", reason: r.reason||"", notes: r.notes||""
-    }; });
-    setSyncStatus("ok", inv.length + " units");
+    sbGet("activity_log","order=ts.desc&limit=300"),
+    sbGet("rma_incoming","order=received_at.desc&limit=500"),
+    sbGet("rma_shipments","order=shipped_at.desc&limit=100")
+  ]).then(function(results){
+    inv=results[0].map(function(r){return{serial:r.serial,sku:r.sku,skuCode:r.sku_code||"",status:r.status,ref:r.ref||"",notes:r.notes||"",updatedAt:r.updated_at};});
+    log=results[1].map(function(r){return{ts:r.ts,msg:r.msg,type:r.type||"",serial:r.serial||"",reason:r.reason||"",notes:r.notes||""};});
+    rmaIncoming=results[2];
+    rmaShipments=results[3];
+    setSyncStatus("ok",inv.length+" units");
     render();
-  }).catch(function(){
-    setSyncStatus("err", "offline");
-    toast("Connection error — check Supabase");
-  });
+  }).catch(function(){ setSyncStatus("err","offline"); toast("Connection error — check Supabase"); });
 }
 
 // ── Render ────────────────────────────────────────────────────
-function render() { stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); }
+function render(){ stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); renderIncoming(); renderShipments(); }
 
-function stats() {
-  document.getElementById("s-total").textContent = inv.length;
-  document.getElementById("s-stock").textContent = inv.filter(function(i){return i.status==="in-stock";}).length;
-  document.getElementById("s-disp").textContent = inv.filter(function(i){return i.status==="dispatched";}).length;
-  document.getElementById("s-rma").textContent = inv.filter(function(i){return i.status==="rma";}).length;
+function stats(){
+  document.getElementById("s-total").textContent=inv.length;
+  document.getElementById("s-stock").textContent=inv.filter(function(i){return i.status==="in-stock";}).length;
+  document.getElementById("s-disp").textContent=inv.filter(function(i){return i.status==="dispatched";}).length;
+  document.getElementById("s-rma").textContent=inv.filter(function(i){return i.status==="rma";}).length;
 }
 
-function renderInv(q) {
-  sq = q || "";
-  var wrap = document.getElementById("inv-tbl");
-
-  if(drillSku) {
-    var items = inv.filter(function(i){ return i.sku===drillSku; });
-    if(sf) items = items.filter(function(i){ return i.status===sf; });
-    if(sq) items = items.filter(function(i){ return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0; });
-    var skuCodeLabel = items.length>0 && items[0].skuCode ? " <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>" : "";
-    var rows = items.map(function(i){
-      var lbl = i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ qReturn(this) }.bind(null))' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td></tr>";
+function renderInv(q){
+  sq=q||"";
+  var wrap=document.getElementById("inv-tbl");
+  if(drillSku){
+    var items=inv.filter(function(i){return i.sku===drillSku;});
+    if(sf) items=items.filter(function(i){return i.status===sf;});
+    if(sq) items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+    var skuCodeLabel=items.length>0&&items[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>":"";
+    var rows=items.map(function(i){
+      var lbl=i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
+      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td></tr>";
     });
     wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
-
-  var groups = {};
+  var groups={};
   inv.forEach(function(i){
     if(!groups[i.sku]) groups[i.sku]={sku:i.sku,skuCode:i.skuCode||"",total:0,stock:0,dispatched:0,rma:0};
     groups[i.sku].total++;
@@ -513,323 +541,375 @@ function renderInv(q) {
     else if(i.status==="dispatched") groups[i.sku].dispatched++;
     else if(i.status==="rma") groups[i.sku].rma++;
   });
-
-  var skus = Object.keys(groups);
-  if(sq) skus = skus.filter(function(k){ return k.toLowerCase().indexOf(sq.toLowerCase())>=0; });
-  if(sf) skus = skus.filter(function(k){
+  var skus=Object.keys(groups);
+  if(sq) skus=skus.filter(function(k){return k.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+  if(sf) skus=skus.filter(function(k){
     if(sf==="in-stock") return groups[k].stock>0;
     if(sf==="dispatched") return groups[k].dispatched>0;
     if(sf==="rma") return groups[k].rma>0;
     return true;
   });
-  if(!skus.length){ wrap.innerHTML="<div class='empty'>No items found</div>"; return; }
-
-  var rows = skus.map(function(k){
+  if(!skus.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
+  var rows=skus.map(function(k){
     var g=groups[k];
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td></tr>";
+    return "<tr data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
+      +r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td></tr>";
   });
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
-function renderRMA() {
-  var wrap = document.getElementById("rma-tbl");
-  var items = log.filter(function(l){ return l.type==="rma"; });
-  if(!items.length){ wrap.innerHTML="<div class='empty'>No RMA entries yet</div>"; return; }
-  var rows = items.map(function(i){ return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>"; });
+function renderRMA(){
+  var wrap=document.getElementById("rma-tbl");
+  var items=log.filter(function(l){return l.type==="rma";});
+  if(!items.length){wrap.innerHTML="<div class='empty'>No RMA entries yet</div>";return;}
+  var rows=items.map(function(i){return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>";});
   wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:130px'>Reason</th><th>Notes</th><th style='width:110px'>Date</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
-function renderLog() {
-  var wrap = document.getElementById("log-wrap");
-  if(!log.length){ wrap.innerHTML="<div class='empty'>No activity yet</div>"; return; }
-  wrap.innerHTML = log.slice(0,150).map(function(l){ return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>"; }).join("");
+function renderLog(){
+  var wrap=document.getElementById("log-wrap");
+  if(!log.length){wrap.innerHTML="<div class='empty'>No activity yet</div>";return;}
+  wrap.innerHTML=log.slice(0,150).map(function(l){return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>";}).join("");
 }
 
-function renderRecent() {
-  var wrap = document.getElementById("recent");
-  var recent = log.filter(function(l){ return l.type==="dispatch"; }).slice(0,5);
-  if(!recent.length){ wrap.innerHTML=""; return; }
-  wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){ return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>"; }).join("")+"</div>";
+function renderRecent(){
+  var wrap=document.getElementById("recent");
+  var recent=log.filter(function(l){return l.type==="dispatch";}).slice(0,5);
+  if(!recent.length){wrap.innerHTML="";return;}
+  wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>";}).join("")+"</div>";
 }
 
-function fd(ts) {
+// ── Incoming damaged ──────────────────────────────────────────
+function renderIncoming(){
+  var wrap=document.getElementById("incoming-tbl");
+  if(!rmaIncoming.length){wrap.innerHTML="<div class='empty'>No incoming units logged yet</div>";return;}
+  var rows=rmaIncoming.map(function(u){
+    var badge=u.status==="shipped"?"<span class='badge shipped'>Shipped</span>":"<span class='badge waiting'>Waiting</span>";
+    return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.order_ref||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.notes||"")+"</td><td>"+badge+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(u.received_at)+"</td></tr>";
+  });
+  wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:110px'>Condition</th><th style='width:160px'>Order / Customer</th><th>Notes</th><th style='width:80px'>Status</th><th style='width:120px'>Received</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+}
+
+function doLogIncoming(){
+  var serial=document.getElementById("inc-serial").value.trim().toUpperCase();
+  var condition=document.getElementById("inc-condition").value;
+  var ref=document.getElementById("inc-ref").value.trim();
+  var notes=document.getElementById("inc-notes").value.trim();
+  if(!serial){toast("Serial number required");return;}
+  setSyncStatus("syncing","saving...");
+  sbPost("rma_incoming",{serial:serial,condition:condition,order_ref:ref||null,notes:notes||null,received_at:new Date().toISOString(),status:"waiting"})
+  .then(function(){
+    closeM("m-incoming");
+    document.getElementById("inc-serial").value="";
+    document.getElementById("inc-ref").value="";
+    document.getElementById("inc-notes").value="";
+    toast("✓ Incoming unit logged");
+    loadData();
+  }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
+}
+
+// ── Shipments ─────────────────────────────────────────────────
+function renderShipments(){
+  var wrap=document.getElementById("shipments-list");
+  if(!rmaShipments.length){wrap.innerHTML="<div class='card'><div class='empty'>No shipments created yet</div></div>";return;}
+  wrap.innerHTML=rmaShipments.map(function(s){
+    var serials=[];
+    try{ serials=JSON.parse(s.serials||"[]"); }catch(e){}
+    var dest=s.destination?"📦 "+esc(s.destination):"📦 Outbound shipment";
+    var meta=fd(s.shipped_at)+" &nbsp;·&nbsp; "+s.serial_count+" unit(s)"+(s.notes?" &nbsp;·&nbsp; "+esc(s.notes):"");
+    return "<div class='shipment-card'>"
+      +"<div class='shipment-info'>"
+        +"<div class='shipment-title'>"+dest+"</div>"
+        +"<div class='shipment-meta'>"+meta+"</div>"
+      +"</div>"
+      +"<div class='shipment-actions'>"
+        +"<button class='btn sm gh' onclick='exportShipmentCSV("+JSON.stringify(s).replace(/"/g,"&quot;")+")'>Export CSV</button>"
+      +"</div>"
+    +"</div>";
+  }).join("");
+}
+
+function loadShipmentPicker(){
+  var picker=document.getElementById("ship-picker");
+  var waiting=rmaIncoming.filter(function(u){return u.status==="waiting";});
+  if(!waiting.length){picker.innerHTML="<div class='empty'>No units waiting — log incoming units first</div>";return;}
+  picker.innerHTML=waiting.map(function(u){
+    return "<div class='cb-row'>"
+      +"<input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'>"
+      +"<label for='chk-"+esc(u.id)+"'>"
+        +"<strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong>"
+        +" <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"
+        +(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")
+      +"</label>"
+      +"<span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span>"
+    +"</div>";
+  }).join("");
+  updateSelCount();
+  document.getElementById("ship-date").value=new Date().toISOString().split("T")[0];
+}
+
+function updateSelCount(){
+  var checked=document.querySelectorAll("#ship-picker input[type=checkbox]:checked").length;
+  document.getElementById("ship-sel-count").textContent=checked?checked+" selected":"";
+}
+
+async function doCreateShipment(){
+  var date=document.getElementById("ship-date").value;
+  var dest=document.getElementById("ship-dest").value.trim();
+  var notes=document.getElementById("ship-notes").value.trim();
+  var checked=Array.from(document.querySelectorAll("#ship-picker input[type=checkbox]:checked")).map(function(c){return c.value;});
+  if(!checked.length){toast("Select at least one unit");return;}
+  if(!date){toast("Select a ship date");return;}
+  var selectedUnits=rmaIncoming.filter(function(u){return checked.indexOf(u.id)>=0;});
+  var serials=selectedUnits.map(function(u){return u.serial;});
+  setSyncStatus("syncing","saving...");
+  try{
+    await fetch(SB_URL+"/rest/v1/rma_shipments",{
+      method:"POST",
+      headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),
+      body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})
+    });
+    for(var i=0;i<checked.length;i++){
+      await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});
+    }
+    closeM("m-shipment");
+    document.getElementById("ship-dest").value="";
+    document.getElementById("ship-notes").value="";
+    toast("✓ Shipment created — "+serials.length+" unit(s)");
+    loadData();
+  } catch(e){ setSyncStatus("err","save failed"); toast("Error saving — try again"); }
+}
+
+function exportShipmentCSV(shipment){
+  var serials=[];
+  try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
+  var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];
+  serials.forEach(function(sn){
+    var unit=rmaIncoming.find(function(u){return u.serial===sn;});
+    if(unit) rows.push([unit.serial,unit.condition,unit.order_ref||"",unit.notes||"",unit.received_at?new Date(unit.received_at).toLocaleDateString():""]);
+    else rows.push([sn,"","","",""]);
+  });
+  var dest=shipment.destination||"shipment";
+  var date=shipment.shipped_at?new Date(shipment.shipped_at).toISOString().slice(0,10):new Date().toISOString().slice(0,10);
+  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
+  var a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+  a.download="shipment_"+dest.replace(/\s+/g,"_")+"_"+date+".csv";
+  a.click();
+  toast("CSV exported ✓");
+}
+
+// ── RMA sub-tabs ──────────────────────────────────────────────
+function goRMASub(t){
+  var subs=["returns","incoming","shipments"];
+  document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",subs[i]===t);});
+  document.querySelectorAll(".rma-subsec").forEach(function(s){s.classList.remove("active");});
+  document.getElementById("rmasub-"+t).classList.add("active");
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function fd(ts){
   if(!ts) return "";
-  var d = new Date(ts);
+  var d=new Date(ts);
   return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
 }
-function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 
-function go(t) {
-  var tabs = ["dispatch","inventory","rma","log"];
-  document.querySelectorAll(".tab").forEach(function(b,i){ b.classList.toggle("active",tabs[i]===t); });
-  document.querySelectorAll(".sec").forEach(function(s){ s.classList.remove("active"); });
+function go(t){
+  var tabs=["dispatch","inventory","rma","log"];
+  document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});
+  document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});
   document.getElementById("sec-"+t).classList.add("active");
   if(t==="inventory") renderInv(sq);
 }
 
-function setDrill(el) { drillSku = el.getAttribute("data-sku"); renderInv(); }
-function qReturn(el) { document.getElementById("rma-sn").value=el.getAttribute("data-serial"); openM("m-rma"); }
-function guardRet(el) { var serial = el.getAttribute("data-serial"); guardAction(function(){ document.getElementById("rma-sn").value=serial; openM("m-rma"); }); }
+function setDrill(el){drillSku=el.getAttribute("data-sku");renderInv();}
+function guardRet(el){var serial=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=serial;openM("m-rma");});}
 
-// ── Edit model ────────────────────────────────────────────────
-function openEdit(sku, skuCode) {
-  document.getElementById("edit-orig-name").value = sku;
-  document.getElementById("edit-name").value = sku;
-  document.getElementById("edit-sku").value = skuCode;
+function openEdit(sku,skuCode){
+  document.getElementById("edit-orig-name").value=sku;
+  document.getElementById("edit-name").value=sku;
+  document.getElementById("edit-sku").value=skuCode;
   openM("m-edit");
 }
-
-function doEdit() {
-  var origName = document.getElementById("edit-orig-name").value;
-  var newName  = document.getElementById("edit-name").value.trim();
-  var newSku   = document.getElementById("edit-sku").value.trim();
-  if(!newName && !newSku){ toast("Enter a model name or SKU"); return; }
-  var displayName = newName || newSku;
+function doEdit(){
+  var origName=document.getElementById("edit-orig-name").value;
+  var newName=document.getElementById("edit-name").value.trim();
+  var newSku=document.getElementById("edit-sku").value.trim();
+  if(!newName&&!newSku){toast("Enter a model name or SKU");return;}
+  var displayName=newName||newSku;
   setSyncStatus("syncing","updating...");
-  var now = new Date().toISOString();
+  var now=new Date().toISOString();
   Promise.all([
     sbPatch("inventory","sku=eq."+encodeURIComponent(origName),{sku:displayName,sku_code:newSku,updated_at:now}),
     sbPost("activity_log",{msg:"Edited model: \""+origName+"\" → \""+displayName+"\""+(newSku?" ["+newSku+"]":""),ts:now})
-  ]).then(function(){
-    closeM("m-edit");
-    toast("Model updated ✓");
-    loadData();
-  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+  ]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();})
+  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
 
-// ── Dispatch ──────────────────────────────────────────────────
-function addS() {
-  var inp = document.getElementById("si");
-  var raw = inp.value.trim().toUpperCase();
+function addS(){
+  var inp=document.getElementById("si");
+  var raw=inp.value.trim().toUpperCase();
   if(!raw) return;
   inp.value=""; procS(raw); inp.focus();
 }
-
-function procS(raw) {
-  if(queue.find(function(q){ return q.serial===raw; })){ toast("Already in queue"); return; }
-  var item = inv.find(function(i){ return i.serial.toUpperCase()===raw; });
+function procS(raw){
+  if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}
+  var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});
   queue.push({serial:raw,item:item,found:!!item});
   renderQ();
 }
-
-function renderQ() {
-  var wrap = document.getElementById("queue");
-  var btn = document.getElementById("dbtn");
-  if(!queue.length){ wrap.innerHTML=""; btn.disabled=true; return; }
-  btn.disabled = !queue.some(function(q){ return q.found; });
-  wrap.innerHTML = queue.map(function(q,idx){
-    var st = q.found && q.item.status!=="in-stock" ? "<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>" : "";
+function renderQ(){
+  var wrap=document.getElementById("queue");
+  var btn=document.getElementById("dbtn");
+  if(!queue.length){wrap.innerHTML="";btn.disabled=true;return;}
+  btn.disabled=!queue.some(function(q){return q.found;});
+  wrap.innerHTML=queue.map(function(q,idx){
+    var st=q.found&&q.item.status!=="in-stock"?"<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>":"";
     return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
   }).join("");
 }
+function rmQ(i){queue.splice(i,1);renderQ();}
+function clrQ(){queue=[];renderQ();}
 
-function rmQ(i){ queue.splice(i,1); renderQ(); }
-function clrQ(){ queue=[]; renderQ(); }
-
-function doPaste() {
-  var lines = document.getElementById("paste-txt").value.split("\n").map(function(l){ return l.trim().toUpperCase(); }).filter(Boolean);
+function doPaste(){
+  var lines=document.getElementById("paste-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
   lines.forEach(procS);
   closeM("m-paste");
   document.getElementById("paste-txt").value="";
 }
 
-function doDispatch() {
-  var ref = document.getElementById("ref").value.trim();
-  var td = queue.filter(function(q){ return q.found; });
+function doDispatch(){
+  var ref=document.getElementById("ref").value.trim();
+  var td=queue.filter(function(q){return q.found;});
   if(!td.length) return;
   setSyncStatus("syncing","saving...");
-  var now = new Date().toISOString();
-  var updates = td.map(function(q){
-    return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",updated_at:now});
-  });
-  var serials = td.map(function(q){ return q.serial; }).join(", ");
-  var msg = "Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
+  var now=new Date().toISOString();
+  var updates=td.map(function(q){return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",updated_at:now});});
+  var serials=td.map(function(q){return q.serial;}).join(", ");
+  var msg="Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
   updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
-  var nf = queue.filter(function(q){ return !q.found; });
+  var nf=queue.filter(function(q){return !q.found;});
   if(nf.length) updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
   Promise.all(updates).then(function(){
-    queue=[];
-    document.getElementById("ref").value="";
-    toast(td.length+" unit(s) dispatched");
-    loadData();
-  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+    queue=[];document.getElementById("ref").value="";toast(td.length+" unit(s) dispatched");loadData();
+  }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
 
-// ── RMA ───────────────────────────────────────────────────────
-function updateReasonHint() {
-  var reason = document.getElementById("rma-reason").value;
-  var hint = document.getElementById("reason-hint");
-  var isRestock = RESTOCK_REASONS.indexOf(reason) >= 0;
-  hint.className = "reason-hint " + (isRestock ? "restock" : "rma");
-  hint.textContent = isRestock ? "✓ Unit will be returned to In Stock" : "⚠ Unit will remain flagged as RMA";
+function updateReasonHint(){
+  var reason=document.getElementById("rma-reason").value;
+  var hint=document.getElementById("reason-hint");
+  var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
+  hint.className="reason-hint "+(isRestock?"restock":"rma");
+  hint.textContent=isRestock?"✓ Unit will be returned to In Stock":"⚠ Unit will remain flagged as RMA";
 }
 
-function doRMA() {
-  var serial = document.getElementById("rma-sn").value.trim().toUpperCase();
-  var reason = document.getElementById("rma-reason").value;
-  var notes  = document.getElementById("rma-notes").value.trim();
-  if(!serial){ toast("Serial required"); return; }
-  var newStatus = RESTOCK_REASONS.indexOf(reason) >= 0 ? "in-stock" : "rma";
+function doRMA(){
+  var serial=document.getElementById("rma-sn").value.trim().toUpperCase();
+  var reason=document.getElementById("rma-reason").value;
+  var notes=document.getElementById("rma-notes").value.trim();
+  if(!serial){toast("Serial required");return;}
+  var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
   setSyncStatus("syncing","saving...");
-  var now = new Date().toISOString();
-  var logMsg = newStatus === "in-stock"
-    ? "Returned to stock: " + serial + " — " + reason + (notes ? " (" + notes + ")" : "")
-    : "RMA: " + serial + " — " + reason + (notes ? " (" + notes + ")" : "");
+  var now=new Date().toISOString();
+  var logMsg=newStatus==="in-stock"?"Returned to stock: "+serial+" — "+reason+(notes?" ("+notes+")":""):"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":"");
   Promise.all([
     sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),
     sbPost("activity_log",{msg:logMsg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
   ]).then(function(){
-    closeM("m-rma");
-    document.getElementById("rma-sn").value="";
-    document.getElementById("rma-notes").value="";
-    toast(newStatus === "in-stock" ? "✓ Unit returned to stock" : "RMA logged");
-    loadData();
-  }).catch(function(){ setSyncStatus("err","save failed"); });
+    closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";
+    toast(newStatus==="in-stock"?"✓ Unit returned to stock":"RMA logged");loadData();
+  }).catch(function(){setSyncStatus("err","save failed");});
 }
 
-// ── Import ────────────────────────────────────────────────────
-function doImport() {
-  var text = document.getElementById("import-txt").value;
-  var defName = document.getElementById("import-sku").value.trim()||"Unknown";
-  if(!text.trim()){ toast("Nothing to import"); return; }
-  var lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
-  var items = [], skipped = 0;
-  var existingSerials = {};
-  inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
+function doImport(){
+  var text=document.getElementById("import-txt").value;
+  var defName=document.getElementById("import-sku").value.trim()||"Unknown";
+  if(!text.trim()){toast("Nothing to import");return;}
+  var lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var items=[],skipped=0;
+  var existingSerials={};
+  inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
   lines.forEach(function(line){
     var parts;
-    if(line.indexOf("\t")>=0){ parts = line.split("\t"); }
-    else {
-      var sm = line.match(/^(.+?)\s{2,}(.+)$/);
-      if(sm){ parts=[sm[1],sm[2]]; } else { parts=line.split(/[,;]+/); }
-    }
-    parts = parts.map(function(p){ return p.trim(); }).filter(Boolean);
-    var name=defName, skuCode="", serial="";
-    if(parts.length>=3){ name=parts[0]; skuCode=parts[1]; serial=parts[2].toUpperCase(); }
-    else if(parts.length===2){ name=parts[0]; serial=parts[1].toUpperCase(); }
-    else if(parts.length===1){ serial=parts[0].toUpperCase(); }
-    if(!serial||serial.length<5||existingSerials[serial]){ skipped++; return; }
+    if(line.indexOf("\t")>=0){parts=line.split("\t");}
+    else{var sm=line.match(/^(.+?)\s{2,}(.+)$/);if(sm){parts=[sm[1],sm[2]];}else{parts=line.split(/[,;]+/);}}
+    parts=parts.map(function(p){return p.trim();}).filter(Boolean);
+    var name=defName,skuCode="",serial="";
+    if(parts.length>=3){name=parts[0];skuCode=parts[1];serial=parts[2].toUpperCase();}
+    else if(parts.length===2){name=parts[0];serial=parts[1].toUpperCase();}
+    else if(parts.length===1){serial=parts[0].toUpperCase();}
+    if(!serial||serial.length<5||existingSerials[serial]){skipped++;return;}
     existingSerials[serial]=true;
     items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
   });
-  if(!items.length){ toast("No new items to import ("+skipped+" skipped)"); return; }
+  if(!items.length){toast("No new items to import ("+skipped+" skipped)");return;}
   setSyncStatus("syncing","importing "+items.length+"...");
-  var batches = [];
+  var batches=[];
   for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
-  var chain = Promise.resolve();
+  var chain=Promise.resolve();
   batches.forEach(function(batch){
-    chain = chain.then(function(){
-      return fetch(SB_URL+"/rest/v1/inventory",{
-        method:"POST",
-        headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
-        body:JSON.stringify(batch)
-      });
-    });
+    chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});
   });
-  chain.then(function(){
-    return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});
-  }).then(function(){
-    closeM("m-import");
-    document.getElementById("import-txt").value="";
-    toast("Imported "+items.length+" items");
-    loadData();
-  }).catch(function(){ setSyncStatus("err","import failed"); toast("Import error — try again"); });
+  chain.then(function(){return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});})
+  .then(function(){closeM("m-import");document.getElementById("import-txt").value="";toast("Imported "+items.length+" items");loadData();})
+  .catch(function(){setSyncStatus("err","import failed");toast("Import error — try again");});
 }
 
-// ── Add item ─────────────────────────────────────────────────
-function updateSNCount() {
-  var lines = document.getElementById("add-sn-bulk").value
-    .split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
-  var badge = document.getElementById("add-sn-count");
-  if(lines.length > 0){
-    badge.textContent = lines.length + (lines.length===1?" serial":" serials");
-    badge.style.display = "inline-block";
-  } else {
-    badge.style.display = "none";
-  }
+function updateSNCount(){
+  var lines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var badge=document.getElementById("add-sn-count");
+  if(lines.length>0){badge.textContent=lines.length+(lines.length===1?" serial":" serials");badge.style.display="inline-block";}
+  else{badge.style.display="none";}
 }
 
-function doAdd() {
-  var name     = document.getElementById("add-name").value.trim();
-  var skuCode  = document.getElementById("add-skucode").value.trim();
-  var notes    = document.getElementById("add-notes").value.trim();
-  var rawLines = document.getElementById("add-sn-bulk").value
-    .split("\n").map(function(l){ return l.trim().toUpperCase(); }).filter(Boolean);
-  if(!name && !skuCode){ toast("Enter a model name or SKU"); return; }
-  var displayName = name || skuCode;
-  var now = new Date().toISOString();
-  var existingSerials = {};
-  inv.forEach(function(i){ existingSerials[i.serial.toUpperCase()]=true; });
+function doAdd(){
+  var name=document.getElementById("add-name").value.trim();
+  var skuCode=document.getElementById("add-skucode").value.trim();
+  var notes=document.getElementById("add-notes").value.trim();
+  var rawLines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
+  if(!name&&!skuCode){toast("Enter a model name or SKU");return;}
+  var displayName=name||skuCode;
+  var now=new Date().toISOString();
+  var existingSerials={};
+  inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
   if(!rawLines.length){
-    var placeholder = {
-      serial: "NO-SN-" + displayName.replace(/\s+/g,"-").toUpperCase() + "-" + Date.now(),
-      sku: displayName, sku_code: skuCode, status: "in-stock", notes: notes, updated_at: now
-    };
+    var placeholder={serial:"NO-SN-"+displayName.replace(/\s+/g,"-").toUpperCase()+"-"+Date.now(),sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now};
     setSyncStatus("syncing","saving...");
-    fetch(SB_URL+"/rest/v1/inventory",{
-      method:"POST",
-      headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
-      body:JSON.stringify([placeholder])
-    }).then(function(){
-      return sbPost("activity_log",{msg:"Added model (no serial): "+displayName+(skuCode?" ["+skuCode+"]":""),ts:now});
-    }).then(function(){
-      closeM("m-add");
-      document.getElementById("add-name").value="";
-      document.getElementById("add-skucode").value="";
-      document.getElementById("add-sn-bulk").value="";
-      document.getElementById("add-notes").value="";
-      document.getElementById("add-sn-count").style.display="none";
-      toast("Model added");
-      loadData();
-    }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+    fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify([placeholder])})
+    .then(function(){return sbPost("activity_log",{msg:"Added model (no serial): "+displayName+(skuCode?" ["+skuCode+"]":""),ts:now});})
+    .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast("Model added");loadData();})
+    .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
     return;
   }
-  var items = [], skipped = 0;
-  var seen = {};
+  var items=[],skipped=0,seen={};
   rawLines.forEach(function(sn){
-    if(sn.length < 5){ skipped++; return; }
-    if(existingSerials[sn] || seen[sn]){ skipped++; return; }
-    seen[sn] = true;
-    items.push({serial:sn, sku:displayName, sku_code:skuCode, status:"in-stock", notes:notes, updated_at:now});
+    if(sn.length<5){skipped++;return;}
+    if(existingSerials[sn]||seen[sn]){skipped++;return;}
+    seen[sn]=true;
+    items.push({serial:sn,sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now});
   });
-  if(!items.length){ toast("All serials already exist or are invalid ("+skipped+" skipped)"); return; }
+  if(!items.length){toast("All serials already exist or are invalid ("+skipped+" skipped)");return;}
   setSyncStatus("syncing","saving "+items.length+"...");
-  var batches = [];
-  for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
-  var chain = Promise.resolve();
-  batches.forEach(function(batch){
-    chain = chain.then(function(){
-      return fetch(SB_URL+"/rest/v1/inventory",{
-        method:"POST",
-        headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),
-        body:JSON.stringify(batch)
-      });
-    });
-  });
-  chain.then(function(){
-    var msg = "Added "+items.length+" unit(s) — "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");
-    return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});
-  }).then(function(){
-    closeM("m-add");
-    document.getElementById("add-name").value="";
-    document.getElementById("add-skucode").value="";
-    document.getElementById("add-sn-bulk").value="";
-    document.getElementById("add-notes").value="";
-    document.getElementById("add-sn-count").style.display="none";
-    toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));
-    loadData();
-  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+  var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
+  var chain=Promise.resolve();
+  batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
+  chain.then(function(){var msg="Added "+items.length+" unit(s) — "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});})
+  .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));loadData();})
+  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
 
-// ── Export ────────────────────────────────────────────────────
-function exportCSV() {
-  var rows=[["Model","SKU","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){
-    return [i.sku,i.skuCode||"",i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""];
-  }));
-  var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(","); }).join("\n");
+function exportCSV(){
+  var rows=[["Model","SKU","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){return[i.sku,i.skuCode||"",i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""];}));
+  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
   var a=document.createElement("a");
   a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
   a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";
@@ -841,77 +921,50 @@ function openM(id){
   if(id==="m-add") document.getElementById("add-sn-count").style.display="none";
   if(id==="m-rma") updateReasonHint();
 }
-function closeM(id){ document.getElementById(id).classList.remove("open"); }
-window.addEventListener("click",function(e){ if(e.target.classList.contains("mbg") && e.target.id !== "m-lock") e.target.classList.remove("open"); });
+function closeM(id){document.getElementById(id).classList.remove("open");}
+window.addEventListener("click",function(e){if(e.target.classList.contains("mbg")&&e.target.id!=="m-lock")e.target.classList.remove("open");});
 
 var tt;
-function toast(msg){
-  var t=document.getElementById("toast");
-  t.textContent=msg; t.style.opacity="1";
-  clearTimeout(tt); tt=setTimeout(function(){ t.style.opacity="0"; },2500);
-}
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";clearTimeout(tt);tt=setTimeout(function(){t.style.opacity="0";},2500);}
 
 // ── AI Assistant ──────────────────────────────────────────────
-var aiHistory = [];
-
-function toggleAI() {
-  var panel = document.getElementById('ai-panel');
-  panel.classList.toggle('open');
-  if(panel.classList.contains('open')) {
-    document.getElementById('ai-input').focus();
-  }
+var aiHistory=[];
+function toggleAI(){
+  var panel=document.getElementById("ai-panel");
+  panel.classList.toggle("open");
+  if(panel.classList.contains("open")) document.getElementById("ai-input").focus();
 }
-
-async function sendAI() {
-  var input = document.getElementById('ai-input');
-  var msg = input.value.trim();
+async function sendAI(){
+  var input=document.getElementById("ai-input");
+  var msg=input.value.trim();
   if(!msg) return;
-
-  appendAIMsg(msg, 'user');
-  input.value = '';
-  document.getElementById('ai-send').disabled = true;
-
-  var thinking = appendAIMsg('Thinking…', 'system');
-
-  try {
-    var res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'chat', message: msg, history: aiHistory })
-    });
-    var data = await res.json();
-
+  appendAIMsg(msg,"user");
+  input.value="";
+  document.getElementById("ai-send").disabled=true;
+  var thinking=appendAIMsg("Thinking…","system");
+  try{
+    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory})});
+    var data=await res.json();
     thinking.remove();
-
-    if(data.error) {
-      appendAIMsg('Error: ' + data.error, 'system');
-    } else {
-      appendAIMsg(data.reply, 'assistant');
-      aiHistory.push({ role: 'user', content: msg });
-      aiHistory.push({ role: 'assistant', content: data.reply });
-      // Keep history to last 10 exchanges
-      if(aiHistory.length > 20) aiHistory = aiHistory.slice(-20);
-      // Reload data if changes were made
-      if(data.commandCount > 0) {
-        setTimeout(loadData, 500);
-      }
+    if(data.error){appendAIMsg("Error: "+data.error,"system");}
+    else{
+      appendAIMsg(data.reply,"assistant");
+      aiHistory.push({role:"user",content:msg});
+      aiHistory.push({role:"assistant",content:data.reply});
+      if(aiHistory.length>20) aiHistory=aiHistory.slice(-20);
+      if(data.commandCount>0) setTimeout(loadData,500);
     }
-  } catch(e) {
-    thinking.remove();
-    appendAIMsg('Connection error — try again', 'system');
-  }
-
-  document.getElementById('ai-send').disabled = false;
-  document.getElementById('ai-input').focus();
+  }catch(e){thinking.remove();appendAIMsg("Connection error — try again","system");}
+  document.getElementById("ai-send").disabled=false;
+  document.getElementById("ai-input").focus();
 }
-
-function appendAIMsg(text, role) {
-  var wrap = document.getElementById('ai-messages');
-  var div = document.createElement('div');
-  div.className = 'ai-msg ' + role;
-  div.textContent = text;
+function appendAIMsg(text,role){
+  var wrap=document.getElementById("ai-messages");
+  var div=document.createElement("div");
+  div.className="ai-msg "+role;
+  div.textContent=text;
   wrap.appendChild(div);
-  wrap.scrollTop = wrap.scrollHeight;
+  wrap.scrollTop=wrap.scrollHeight;
   return div;
 }
 
