@@ -5,7 +5,6 @@ export default async function handler(req, res) {
 
   const { action, password, message, history } = req.body;
 
-  // ── Password check ────────────────────────────────────────
   if (action === 'auth') {
     const correct = process.env.EDIT_PASSWORD;
     if (!correct) return res.status(500).json({ error: 'Server not configured' });
@@ -14,35 +13,118 @@ export default async function handler(req, res) {
       : res.status(401).json({ ok: false, error: 'Wrong password' });
   }
 
-  // ── Claude AI chat ────────────────────────────────────────
   if (action === 'chat') {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'AI not configured' });
 
     const SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-    const SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+    const SB_KEY = process.env.SUPABASE_KEY || "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+    const SB_HEADERS = {
+      'Content-Type': 'application/json',
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${SB_KEY}`
+    };
+
+    async function runCommand(cmd) {
+      try {
+        let url = `${SB_URL}/rest/v1/${cmd.table}`;
+        if (cmd.match) {
+          const eqIdx = cmd.match.indexOf('=eq.');
+          if (eqIdx !== -1) {
+            const col = cmd.match.slice(0, eqIdx);
+            const val = cmd.match.slice(eqIdx + 4);
+            url += `?${col}=eq.${encodeURIComponent(val)}`;
+          } else {
+            url += `?${cmd.match}`;
+          }
+        }
+
+        const method = cmd.type === 'insert' ? 'POST'
+          : cmd.type === 'update' ? 'PATCH'
+          : cmd.type === 'delete' ? 'DELETE'
+          : 'GET';
+
+        const sbRes = await fetch(url, {
+          method,
+          headers: {
+            ...SB_HEADERS,
+            'Prefer': cmd.type === 'select' ? 'return=representation' : 'return=minimal'
+          },
+          body: cmd.data ? JSON.stringify(cmd.data) : undefined
+        });
+
+        if (!sbRes.ok) {
+          let errBody = '';
+          try { errBody = await sbRes.text(); } catch(_) {}
+          return { ok: false, status: sbRes.status, error: errBody || `HTTP ${sbRes.status}`, cmd };
+        }
+
+        if (cmd.type === 'select') {
+          const rows = await sbRes.json();
+          return { ok: true, rows, cmd };
+        }
+
+        return { ok: true, cmd };
+      } catch (e) {
+        return { ok: false, error: e.message, cmd };
+      }
+    }
+
+    let inventoryContext = '';
+    try {
+      const [stockRes, dispRes, rmaRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/inventory?status=eq.in-stock&select=serial,sku,sku_code&limit=1000`, { headers: SB_HEADERS }),
+        fetch(`${SB_URL}/rest/v1/inventory?status=eq.dispatched&select=count`, { headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' } }),
+        fetch(`${SB_URL}/rest/v1/inventory?status=eq.rma&select=count`, { headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' } })
+      ]);
+
+      const stockItems = stockRes.ok ? await stockRes.json() : [];
+      const dispCount = dispRes.headers.get('content-range')?.split('/')?.[1] || '?';
+      const rmaCount = rmaRes.headers.get('content-range')?.split('/')?.[1] || '?';
+
+      const modelMap = {};
+      for (const item of stockItems) {
+        if (!modelMap[item.sku]) modelMap[item.sku] = { skuCode: item.sku_code || '', count: 0 };
+        modelMap[item.sku].count++;
+      }
+      const modelLines = Object.entries(modelMap)
+        .map(([sku, d]) => `  - ${sku}${d.skuCode ? ' [' + d.skuCode + ']' : ''}: ${d.count} in stock`)
+        .join('\n');
+
+      inventoryContext = `\nCURRENT INVENTORY SNAPSHOT (live from database):
+In stock: ${stockItems.length} units across these models:
+${modelLines || '  (none)'}
+Dispatched: ${dispCount} units total
+RMA: ${rmaCount} units total\n`;
+    } catch (_) {
+      inventoryContext = '\n(Could not load inventory snapshot)\n';
+    }
 
     const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico. You help manage inventory by generating JSON commands executed against a Supabase database.
 
 The inventory table has: serial (PK), sku (model name), sku_code, status ("in-stock"/"dispatched"/"rma"), ref, notes, updated_at.
-The activity_log table has: msg, type ("dispatch"/"rma"/""), serial, reason, notes, ts.
-
-When the user asks you to make a change, respond ONLY with a JSON object:
+The activity_log table has: msg, type ("dispatch"/"rma"/"add"/""), serial, reason, notes, ts.
+${inventoryContext}
+When the user asks you to make a change, respond ONLY with a JSON object (no markdown, no extra text):
 {
-  "reply": "Human readable confirmation",
+  "reply": "Human readable confirmation of exactly what was done",
   "commands": [
     { "type": "insert"|"update"|"delete"|"select", "table": "inventory"|"activity_log", "data": {}, "match": "column=eq.value" }
   ]
 }
 
-For read-only questions respond with: { "reply": "answer", "commands": [] }
+For read-only questions respond with: { "reply": "your answer", "commands": [] }
 
 Rules:
-- Always log to activity_log when making changes
-- Dispatching: set status to "dispatched"
+- Always log to activity_log when making changes (include msg, type, serial if applicable, ts as ISO string)
+- Dispatching serials: PATCH inventory set status="dispatched". Always verify the serial exists in-stock first with a select.
+- If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
 - Adding without serials: use serial "NO-SN-MODELNAME-<timestamp>"
 - Always include updated_at as current ISO timestamp for inventory changes
-- Be conversational and concise`;
+- For bulk operations (multiple serials), emit one command per serial
+- If something fails or a serial is not found, say so clearly in the reply
+- Be conversational and concise
+- NEVER make up serials or data — only act on what the user provides or what the database confirms`;
 
     const messages = [
       ...(history || []),
@@ -59,14 +141,13 @@ Rules:
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: SYSTEM,
           messages
         })
       });
 
       const data = await response.json();
-      console.log('ANTHROPIC RAW:', JSON.stringify(data)); // ← DEBUG LINE
       const text = data.content?.[0]?.text || '';
 
       if (!text) {
@@ -75,44 +156,39 @@ Rules:
 
       let parsed;
       try {
-        const clean = text.replace(/```json|```/g, '').trim();
+        const clean = text.replace(/```json\n?|```/g, '').trim();
         parsed = JSON.parse(clean);
       } catch(e) {
         parsed = { reply: text, commands: [] };
       }
 
       const results = [];
+      const errors = [];
+
       for (const cmd of (parsed.commands || [])) {
-        const url = `${SB_URL}/rest/v1/${cmd.table}${cmd.match ? '?' + cmd.match : ''}`;
-        const method = cmd.type === 'insert' ? 'POST'
-          : cmd.type === 'update' ? 'PATCH'
-          : cmd.type === 'delete' ? 'DELETE'
-          : 'GET';
-
-        const sbRes = await fetch(url, {
-          method,
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`,
-            'Prefer': cmd.type === 'select' ? 'return=representation' : 'return=minimal'
-          },
-          body: cmd.data ? JSON.stringify(cmd.data) : undefined
-        });
-
-        if (cmd.type === 'select') {
-          const rows = await sbRes.json();
-          results.push(rows);
+        const result = await runCommand(cmd);
+        if (result.ok) {
+          if (result.rows) results.push(result.rows);
+        } else {
+          errors.push(`[${cmd.type} ${cmd.table}${cmd.match ? ' where ' + cmd.match : ''}] ${result.error}`);
+          console.error('Supabase command failed:', result);
         }
       }
 
+      let finalReply = parsed.reply || text;
+      if (errors.length > 0) {
+        finalReply += `\n\n⚠️ ${errors.length} command(s) failed:\n` + errors.map(e => `• ${e}`).join('\n');
+      }
+
       return res.status(200).json({
-        reply: parsed.reply || text,
+        reply: finalReply,
         results,
-        commandCount: (parsed.commands || []).length
+        commandCount: (parsed.commands || []).length,
+        errors
       });
 
     } catch(e) {
+      console.error('AI handler error:', e);
       return res.status(500).json({ error: 'AI request failed: ' + e.message });
     }
   }
