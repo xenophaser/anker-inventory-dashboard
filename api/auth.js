@@ -48,7 +48,7 @@ export default async function handler(req, res) {
           method,
           headers: {
             ...SB_HEADERS,
-            'Prefer': cmd.type === 'select' ? 'return=representation' : 'return=minimal'
+            'Prefer': cmd.type === 'select' ? 'return=representation' : 'resolution=ignore-duplicates,return=minimal'
           },
           body: cmd.data ? JSON.stringify(cmd.data) : undefined
         });
@@ -119,10 +119,11 @@ Rules:
 - Always log to activity_log when making changes (include msg, type, serial if applicable, ts as ISO string)
 - Dispatching serials: PATCH inventory set status="dispatched". Always verify the serial exists in-stock first with a select.
 - If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
-- Adding without serials: use serial "NO-SN-MODELNAME-<timestamp>"
+- When adding units WITH serials: use the exact serial strings provided. Each serial = one insert command.
+- When adding WITHOUT serials: use serial "NO-SN-<SKUCODE>-<timestamp_ms>" where timestamp_ms is a 13-digit number. Never reuse the same timestamp for multiple placeholder serials — increment by 1 for each.
 - Always include updated_at as current ISO timestamp for inventory changes
-- For bulk operations (multiple serials), emit one command per serial
-- If something fails or a serial is not found, say so clearly in the reply
+- For bulk operations (multiple serials), emit one insert command per serial
+- IMPORTANT: Do NOT optimistically claim success in the reply — the reply should describe the intended action. Actual success/failure will be appended automatically.
 - Be conversational and concise
 - NEVER make up serials or data — only act on what the user provides or what the database confirms`;
 
@@ -140,7 +141,7 @@ Rules:
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2048,
           system: SYSTEM,
           messages
@@ -164,26 +165,38 @@ Rules:
 
       const results = [];
       const errors = [];
+      let successCount = 0;
 
       for (const cmd of (parsed.commands || [])) {
         const result = await runCommand(cmd);
         if (result.ok) {
           if (result.rows) results.push(result.rows);
+          if (cmd.type !== 'select') successCount++;
         } else {
           errors.push(`[${cmd.type} ${cmd.table}${cmd.match ? ' where ' + cmd.match : ''}] ${result.error}`);
           console.error('Supabase command failed:', result);
         }
       }
 
+      // Build a clear final reply that reflects actual outcome
       let finalReply = parsed.reply || text;
-      if (errors.length > 0) {
-        finalReply += `\n\n⚠️ ${errors.length} command(s) failed:\n` + errors.map(e => `• ${e}`).join('\n');
+      const totalCmds = (parsed.commands || []).filter(c => c.type !== 'select').length;
+
+      if (errors.length > 0 && successCount === 0) {
+        // Everything failed
+        finalReply = `❌ Failed — nothing was saved. ${errors.length} error(s):\n` + errors.map(e => `• ${e}`).join('\n');
+      } else if (errors.length > 0) {
+        // Partial success
+        finalReply += `\n\n⚠️ Partial: ${successCount}/${totalCmds} succeeded. ${errors.length} failed:\n` + errors.map(e => `• ${e}`).join('\n');
+      } else if (totalCmds > 0) {
+        // Full success — append a confirmation tick
+        finalReply += ` ✓ (${successCount} change${successCount !== 1 ? 's' : ''} saved)`;
       }
 
       return res.status(200).json({
         reply: finalReply,
         results,
-        commandCount: (parsed.commands || []).length,
+        commandCount: totalCmds,
         errors
       });
 
