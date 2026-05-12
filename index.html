@@ -154,7 +154,7 @@ tbody tr:last-child td{border-bottom:none}
 #ai-panel.open{display:flex}
 #ai-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent)}
 #ai-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:320px;min-height:200px}
-.ai-msg{padding:8px 12px;border-radius:var(--r);font-size:12px;line-height:1.5;max-width:90%}
+.ai-msg{padding:8px 12px;border-radius:var(--r);font-size:12px;line-height:1.5;max-width:90%;white-space:pre-wrap;word-break:break-word}
 .ai-msg.user{background:var(--accent-dim);color:var(--text);align-self:flex-end}
 .ai-msg.assistant{background:var(--surface2);color:var(--text);align-self:flex-start;border:1px solid var(--border)}
 .ai-msg.system{background:transparent;color:var(--text3);align-self:center;font-style:italic;font-size:11px}
@@ -485,7 +485,7 @@ function sbGet(table,params){
   return fetch(SB_URL+"/rest/v1/"+table+"?"+(params||"order=updated_at.desc&limit=2000"),{headers:HEADERS}).then(function(r){return r.json();});
 }
 function sbPost(table,data){
-  return fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
+  return fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(data)});
 }
 function sbPatch(table,match,data){
   return fetch(SB_URL+"/rest/v1/"+table+"?"+match,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
@@ -1015,15 +1015,21 @@ async function sendAI(){
     var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory})});
     var data=await res.json();
     thinking.remove();
-    if(data.error){appendAIMsg("Error: "+data.error,"system");}
-    else{
-      appendAIMsg(data.reply,"assistant");
+    if(data.error){
+      appendAIMsg("Error: "+data.error,"system");
+    } else {
+      // Always use data.reply — never show raw JSON
+      var reply = (typeof data.reply === "string" && data.reply.trim()) ? data.reply : "Done.";
+      appendAIMsg(reply,"assistant");
       aiHistory.push({role:"user",content:msg});
-      aiHistory.push({role:"assistant",content:data.reply});
+      aiHistory.push({role:"assistant",content:reply});
       if(aiHistory.length>20) aiHistory=aiHistory.slice(-20);
-      if(data.commandCount>0) setTimeout(loadData,500);
+      if(data.commandCount>0) setTimeout(loadData,800);
     }
-  }catch(e){thinking.remove();appendAIMsg("Connection error — try again","system");}
+  }catch(e){
+    thinking.remove();
+    appendAIMsg("Connection error — try again","system");
+  }
   document.getElementById("ai-send").disabled=false;
   document.getElementById("ai-input").focus();
 }
