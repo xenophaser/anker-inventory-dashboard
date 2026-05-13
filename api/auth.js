@@ -5,6 +5,7 @@ export default async function handler(req, res) {
 
   const { action, password, message, history } = req.body;
 
+  // ── Auth ──────────────────────────────────────────────────
   if (action === 'auth') {
     const correct = process.env.EDIT_PASSWORD;
     if (!correct) return res.status(500).json({ error: 'Server not configured' });
@@ -13,6 +14,7 @@ export default async function handler(req, res) {
       : res.status(401).json({ ok: false, error: 'Wrong password' });
   }
 
+  // ── Chat ──────────────────────────────────────────────────
   if (action === 'chat') {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'AI not configured' });
@@ -24,6 +26,16 @@ export default async function handler(req, res) {
       'apikey': SB_KEY,
       'Authorization': `Bearer ${SB_KEY}`
     };
+
+    // Wrap any promise with a timeout so one slow step can't hang the whole function
+    function withTimeout(promise, ms, label) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout: ${label} took >${ms}ms`)), ms)
+        )
+      ]);
+    }
 
     async function runCommand(cmd) {
       try {
@@ -48,7 +60,9 @@ export default async function handler(req, res) {
           method,
           headers: {
             ...SB_HEADERS,
-            'Prefer': cmd.type === 'select' ? 'return=representation' : 'resolution=ignore-duplicates,return=minimal'
+            'Prefer': cmd.type === 'select'
+              ? 'return=representation'
+              : 'resolution=ignore-duplicates,return=minimal'
           },
           body: cmd.data ? JSON.stringify(cmd.data) : undefined
         });
@@ -70,13 +84,22 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Inventory snapshot (3s timeout, non-fatal) ─────────
     let inventoryContext = '';
     try {
-      const [stockRes, dispRes, rmaRes] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/inventory?status=eq.in-stock&select=serial,sku,sku_code&limit=1000`, { headers: SB_HEADERS }),
-        fetch(`${SB_URL}/rest/v1/inventory?status=eq.dispatched&select=count`, { headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' } }),
-        fetch(`${SB_URL}/rest/v1/inventory?status=eq.rma&select=count`, { headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' } })
-      ]);
+      const [stockRes, dispRes, rmaRes] = await withTimeout(
+        Promise.all([
+          fetch(`${SB_URL}/rest/v1/inventory?status=eq.in-stock&select=serial,sku,sku_code&limit=1000`, { headers: SB_HEADERS }),
+          fetch(`${SB_URL}/rest/v1/inventory?status=eq.dispatched&select=count`, {
+            headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
+          }),
+          fetch(`${SB_URL}/rest/v1/inventory?status=eq.rma&select=count`, {
+            headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
+          })
+        ]),
+        3000,
+        'inventory snapshot'
+      );
 
       const stockItems = stockRes.ok ? await stockRes.json() : [];
       const dispCount = dispRes.headers.get('content-range')?.split('/')?.[1] || '?';
@@ -96,8 +119,8 @@ In stock: ${stockItems.length} units across these models:
 ${modelLines || '  (none)'}
 Dispatched: ${dispCount} units total
 RMA: ${rmaCount} units total\n`;
-    } catch (_) {
-      inventoryContext = '\n(Could not load inventory snapshot)\n';
+    } catch (e) {
+      inventoryContext = `\n(Inventory snapshot unavailable: ${e.message})\n`;
     }
 
     const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico. You help manage inventory by generating JSON commands executed against a Supabase database.
@@ -105,9 +128,9 @@ RMA: ${rmaCount} units total\n`;
 The inventory table has: serial (PK), sku (model name), sku_code, status ("in-stock"/"dispatched"/"rma"), ref, notes, updated_at.
 The activity_log table has: msg, type ("dispatch"/"rma"/"add"/""), serial, reason, notes, ts.
 ${inventoryContext}
-When the user asks you to make a change, respond ONLY with a JSON object (no markdown, no extra text):
+When the user asks you to make a change, respond ONLY with a valid JSON object (no markdown, no extra text, no explanation outside the JSON):
 {
-  "reply": "Human readable confirmation of exactly what was done",
+  "reply": "Human readable description of the intended action",
   "commands": [
     { "type": "insert"|"update"|"delete"|"select", "table": "inventory"|"activity_log", "data": {}, "match": "column=eq.value" }
   ]
@@ -121,89 +144,112 @@ Rules:
 - If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
 - When adding units WITH serials: use the exact serial strings provided. Each serial = one insert command.
 - When adding WITHOUT serials: use serial "NO-SN-<SKUCODE>-<timestamp_ms>" where timestamp_ms is a 13-digit number. Never reuse the same timestamp for multiple placeholder serials — increment by 1 for each.
-- Always include updated_at as current ISO timestamp for inventory changes
-- For bulk operations (multiple serials), emit one insert command per serial
-- IMPORTANT: Do NOT optimistically claim success in the reply — the reply should describe the intended action. Actual success/failure will be appended automatically.
-- Be conversational and concise
-- NEVER make up serials or data — only act on what the user provides or what the database confirms`;
+- Always include updated_at as current ISO timestamp for inventory changes.
+- For bulk operations (multiple serials), emit one insert command per serial — but cap at 50 commands per response. If more are needed, tell the user to split into batches.
+- IMPORTANT: Do NOT optimistically claim success in the reply — describe the intended action only. Actual success/failure will be appended automatically.
+- Be conversational and concise.
+- NEVER make up serials or data — only act on what the user provides or what the database confirms.`;
 
     const messages = [
-      ...(history || []),
+      ...(history || []).slice(-10), // limit history to last 10 turns to reduce token count
       { role: 'user', content: message }
     ];
 
+    // ── Call AI (6s timeout) ───────────────────────────────
+    let text = '';
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 2048,
-          system: SYSTEM,
-          messages
-        })
+      const aiResponse = await withTimeout(
+        fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001', // faster model = less timeout risk
+            max_tokens: 1024,
+            system: SYSTEM,
+            messages
+          })
+        }).then(r => r.json()),
+        6000,
+        'AI response'
+      );
+
+      text = aiResponse.content?.[0]?.text || '';
+    } catch (e) {
+      return res.status(200).json({
+        reply: `⏱ The request timed out (${e.message}). Try a simpler request or split bulk operations into smaller batches.`,
+        results: [],
+        commandCount: 0,
+        errors: [e.message]
       });
+    }
 
-      const data = await response.json();
-      const text = data.content?.[0]?.text || '';
+    if (!text) {
+      return res.status(200).json({
+        reply: 'No response from AI — try again.',
+        results: [],
+        commandCount: 0
+      });
+    }
 
-      if (!text) {
-        return res.status(200).json({ reply: 'No response from AI — try again.', results: [], commandCount: 0 });
-      }
+    // ── Parse AI response ──────────────────────────────────
+    let parsed;
+    try {
+      const clean = text.replace(/```json\n?|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch(e) {
+      // If the AI returned plain text instead of JSON, just show it
+      return res.status(200).json({
+        reply: text,
+        results: [],
+        commandCount: 0
+      });
+    }
 
-      let parsed;
-      try {
-        const clean = text.replace(/```json\n?|```/g, '').trim();
-        parsed = JSON.parse(clean);
-      } catch(e) {
-        parsed = { reply: text, commands: [] };
-      }
+    const commands = (parsed.commands || []).slice(0, 50); // hard cap
 
-      const results = [];
-      const errors = [];
-      let successCount = 0;
+    // ── Run commands in parallel batches of 5 ─────────────
+    const results = [];
+    const errors = [];
+    let successCount = 0;
 
-      for (const cmd of (parsed.commands || [])) {
-        const result = await runCommand(cmd);
+    // Split into batches to avoid hammering Supabase but still be faster than serial
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < commands.length; i += BATCH_SIZE) {
+      const batch = commands.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(cmd => runCommand(cmd)));
+      for (const result of batchResults) {
         if (result.ok) {
           if (result.rows) results.push(result.rows);
-          if (cmd.type !== 'select') successCount++;
+          if (result.cmd.type !== 'select') successCount++;
         } else {
-          errors.push(`[${cmd.type} ${cmd.table}${cmd.match ? ' where ' + cmd.match : ''}] ${result.error}`);
+          errors.push(`[${result.cmd.type} ${result.cmd.table}${result.cmd.match ? ' where ' + result.cmd.match : ''}] ${result.error}`);
           console.error('Supabase command failed:', result);
         }
       }
-
-      // Build a clear final reply that reflects actual outcome
-      let finalReply = parsed.reply || text;
-      const totalCmds = (parsed.commands || []).filter(c => c.type !== 'select').length;
-
-      if (errors.length > 0 && successCount === 0) {
-        // Everything failed
-        finalReply = `❌ Failed — nothing was saved. ${errors.length} error(s):\n` + errors.map(e => `• ${e}`).join('\n');
-      } else if (errors.length > 0) {
-        // Partial success
-        finalReply += `\n\n⚠️ Partial: ${successCount}/${totalCmds} succeeded. ${errors.length} failed:\n` + errors.map(e => `• ${e}`).join('\n');
-      } else if (totalCmds > 0) {
-        // Full success — append a confirmation tick
-        finalReply += ` ✓ (${successCount} change${successCount !== 1 ? 's' : ''} saved)`;
-      }
-
-      return res.status(200).json({
-        reply: finalReply,
-        results,
-        commandCount: totalCmds,
-        errors
-      });
-
-    } catch(e) {
-      console.error('AI handler error:', e);
-      return res.status(500).json({ error: 'AI request failed: ' + e.message });
     }
+
+    // ── Build final reply ──────────────────────────────────
+    let finalReply = parsed.reply || text;
+    const totalCmds = commands.filter(c => c.type !== 'select').length;
+
+    if (errors.length > 0 && successCount === 0) {
+      finalReply = `❌ Failed — nothing was saved.\n` + errors.map(e => `• ${e}`).join('\n');
+    } else if (errors.length > 0) {
+      finalReply += `\n\n⚠️ Partial: ${successCount}/${totalCmds} succeeded.\n` + errors.map(e => `• ${e}`).join('\n');
+    } else if (totalCmds > 0) {
+      finalReply += ` ✓ (${successCount} change${successCount !== 1 ? 's' : ''} saved)`;
+    }
+
+    return res.status(200).json({
+      reply: finalReply,
+      results,
+      commandCount: totalCmds,
+      errors
+    });
   }
 
   return res.status(400).json({ error: 'Unknown action' });
