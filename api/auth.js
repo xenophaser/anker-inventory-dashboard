@@ -56,6 +56,7 @@ export default async function handler(req, res) {
           : cmd.type === 'delete' ? 'DELETE'
           : 'GET';
 
+        const isRead = method === 'GET' || method === 'DELETE';
         const sbRes = await fetch(url, {
           method,
           headers: {
@@ -64,7 +65,8 @@ export default async function handler(req, res) {
               ? 'return=representation'
               : 'resolution=ignore-duplicates,return=minimal'
           },
-          body: cmd.data ? JSON.stringify(cmd.data) : undefined
+          // GET and DELETE must never have a body — Supabase rejects it
+          body: (!isRead && cmd.data) ? JSON.stringify(cmd.data) : undefined
         });
 
         if (!sbRes.ok) {
@@ -142,6 +144,7 @@ Rules:
 - Always log to activity_log when making changes (include msg, type, serial if applicable, ts as ISO string)
 - Dispatching serials: PATCH inventory set status="dispatched". Always verify the serial exists in-stock first with a select.
 - If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
+- To query dispatch history or count dispatched units, SELECT from the inventory table with match "status=eq.dispatched". Do NOT query activity_log with a match — activity_log has no indexed filters and will cause errors. For activity_log, always insert only, never select.
 - When adding units WITH serials: use the exact serial strings provided. Each serial = one insert command.
 - When adding WITHOUT serials: use serial "NO-SN-<SKUCODE>-<timestamp_ms>" where timestamp_ms is a 13-digit number. Never reuse the same timestamp for multiple placeholder serials — increment by 1 for each.
 - Always include updated_at as current ISO timestamp for inventory changes.
