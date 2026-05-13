@@ -42,7 +42,6 @@ export default async function handler(req, res) {
         let url = `${SB_URL}/rest/v1/${cmd.table}`;
         const params = new URLSearchParams();
 
-        // match supports comma-separated filters e.g. "type=eq.dispatch,status=eq.in-stock"
         if (cmd.match) {
           const filters = cmd.match.split(',').map(f => f.trim());
           for (const f of filters) {
@@ -50,7 +49,6 @@ export default async function handler(req, res) {
             if (eqIdx !== -1) {
               params.append(f.slice(0, eqIdx), `eq.${f.slice(eqIdx + 4)}`);
             } else {
-              // pass-through for other operators e.g. "ts=gte.2025-01-01"
               const sep = f.indexOf('=');
               if (sep !== -1) params.append(f.slice(0, sep), f.slice(sep + 1));
             }
@@ -78,7 +76,6 @@ export default async function handler(req, res) {
               ? 'return=representation'
               : 'resolution=ignore-duplicates,return=minimal'
           },
-          // GET and DELETE must never have a body — Supabase rejects it
           body: (!isRead && cmd.data) ? JSON.stringify(cmd.data) : undefined
         });
 
@@ -138,40 +135,43 @@ RMA: ${rmaCount} units total\n`;
       inventoryContext = `\n(Inventory snapshot unavailable: ${e.message})\n`;
     }
 
-    const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico. You help manage inventory by generating JSON commands executed against a Supabase database.
+    const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico.
 
 The inventory table has: serial (PK), sku (model name), sku_code, status ("in-stock"/"dispatched"/"rma"), ref, notes, updated_at.
 The activity_log table has: msg, type ("dispatch"/"rma"/"add"/""), serial, reason, notes, ts.
 ${inventoryContext}
-When the user asks you to make a change, respond ONLY with a valid JSON object (no markdown, no extra text, no explanation outside the JSON):
-{
-  "reply": "Human readable description of the intended action",
-  "commands": [
-    { "type": "insert"|"update"|"delete"|"select", "table": "inventory"|"activity_log", "data": {}, "match": "column=eq.value" }
-  ]
-}
+CRITICAL OUTPUT FORMAT: Respond with ONLY a single valid JSON object — no markdown, no backticks.
 
-For read-only questions respond with: { "reply": "your answer", "commands": [] }
+{ "reply": "Plain English description", "commands": [] }
+
+The "reply" field must ALWAYS be plain English — never JSON or code.
+For read-only questions, leave "commands" as [].
+
+Example correct: {"reply":"There are 142 dispatched units.","commands":[]}
 
 Rules:
-- Always log to activity_log when making changes (include msg, type, serial if applicable, ts as ISO string)
-- Dispatching serials: PATCH inventory set status="dispatched". Always verify the serial exists in-stock first with a select.
-- If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
-- To query dispatch history, SELECT from activity_log with match "type=eq.dispatch", order "ts.desc", limit 20, select "msg,type,ts,serial,notes". This is valid — activity_log selects are allowed.
-- To count dispatched units, SELECT from inventory with match "status=eq.dispatched".
-- Commands support optional fields: "select" (columns), "order" (e.g. "ts.desc"), "limit" (number).
-- When adding units WITH serials: use the exact serial strings provided. Each serial = one insert command.
-- When adding WITHOUT serials: use serial "NO-SN-<SKUCODE>-<timestamp_ms>" where timestamp_ms is a 13-digit number. Never reuse the same timestamp for multiple placeholder serials — increment by 1 for each.
-- Always include updated_at as current ISO timestamp for inventory changes.
-- For bulk operations (multiple serials), emit one insert command per serial — but cap at 50 commands per response. If more are needed, tell the user to split into batches.
-- IMPORTANT: Do NOT optimistically claim success in the reply — describe the intended action only. Actual success/failure will be appended automatically.
-- Be conversational and concise.
-- NEVER make up serials or data — only act on what the user provides or what the database confirms.`;
+- Always log to activity_log when making changes
+- Dispatching: PATCH inventory set status="dispatched". Verify serial exists first.
+- To query dispatch history: SELECT from activity_log, match "type=eq.dispatch", order "ts.desc", limit 20
+- To count dispatched: SELECT from inventory, match "status=eq.dispatched"
+- Commands support: "select" (columns), "order" (e.g. "ts.desc"), "limit" (number)
+- Adding WITH serials: one insert per serial. WITHOUT serials: serial = "NO-SN-<SKUCODE>-<timestamp_ms>"
+- Always include updated_at as ISO timestamp for inventory changes
+- Cap bulk operations at 50 commands — tell user to split if more needed
+- Do NOT claim success in reply — describe intended action only
+- NEVER make up serials or data`;
 
-    const messages = [
-      ...(history || []).slice(-10), // limit history to last 10 turns to reduce token count
-      { role: 'user', content: message }
-    ];
+    const cleanHistory = (history || []).slice(-10).map(m => {
+      if (m.role === 'assistant') {
+        const t = (m.content || '').trim();
+        if (t.startsWith('{') || t.startsWith('[')) {
+          return { role: 'assistant', content: '(previous action completed)' };
+        }
+      }
+      return m;
+    });
+
+    const messages = [...cleanHistory, { role: 'user', content: message }];
 
     // ── Call AI (6s timeout) ───────────────────────────────
     let text = '';
@@ -185,59 +185,41 @@ Rules:
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001', // faster model = less timeout risk
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: SYSTEM,
             messages
           })
         }).then(r => r.json()),
-        6000,
-        'AI response'
+        6000, 'AI response'
       );
-
       text = aiResponse.content?.[0]?.text || '';
     } catch (e) {
       return res.status(200).json({
-        reply: `⏱ The request timed out (${e.message}). Try a simpler request or split bulk operations into smaller batches.`,
-        results: [],
-        commandCount: 0,
-        errors: [e.message]
+        reply: `⏱ Timed out (${e.message}). Try a simpler request or split bulk operations.`,
+        results: [], commandCount: 0, errors: [e.message]
       });
     }
 
     if (!text) {
-      return res.status(200).json({
-        reply: 'No response from AI — try again.',
-        results: [],
-        commandCount: 0
-      });
+      return res.status(200).json({ reply: 'No response from AI — try again.', results: [], commandCount: 0 });
     }
 
     // ── Parse AI response ──────────────────────────────────
     let parsed;
     try {
-      const clean = text.replace(/```json\n?|```/g, '').trim();
-      parsed = JSON.parse(clean);
+      parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
     } catch(e) {
-      // If the AI returned plain text instead of JSON, just show it
-      return res.status(200).json({
-        reply: text,
-        results: [],
-        commandCount: 0
-      });
+      return res.status(200).json({ reply: text, results: [], commandCount: 0 });
     }
 
-    const commands = (parsed.commands || []).slice(0, 50); // hard cap
+    const commands = (parsed.commands || []).slice(0, 50);
 
     // ── Run commands in parallel batches of 5 ─────────────
-    const results = [];
-    const errors = [];
+    const results = [], errors = [];
     let successCount = 0;
-
-    // Split into batches to avoid hammering Supabase but still be faster than serial
-    const BATCH_SIZE = 5;
-    for (let i = 0; i < commands.length; i += BATCH_SIZE) {
-      const batch = commands.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < commands.length; i += 5) {
+      const batch = commands.slice(i, i + 5);
       const batchResults = await Promise.all(batch.map(cmd => runCommand(cmd)));
       for (const result of batchResults) {
         if (result.ok) {
@@ -245,29 +227,27 @@ Rules:
           if (result.cmd.type !== 'select') successCount++;
         } else {
           errors.push(`[${result.cmd.type} ${result.cmd.table}${result.cmd.match ? ' where ' + result.cmd.match : ''}] ${result.error}`);
-          console.error('Supabase command failed:', result);
         }
       }
     }
 
     // ── Build final reply ──────────────────────────────────
-    let finalReply = parsed.reply || text;
+    let rawReply = parsed.reply || '';
+    if (!rawReply || rawReply.trim().startsWith('{') || rawReply.trim().startsWith('[')) {
+      rawReply = commands.length > 0 ? 'Processing your request…' : 'Done.';
+    }
+    let finalReply = rawReply;
     const totalCmds = commands.filter(c => c.type !== 'select').length;
 
     if (errors.length > 0 && successCount === 0) {
-      finalReply = `❌ Failed — nothing was saved.\n` + errors.map(e => `• ${e}`).join('\n');
+      finalReply = '❌ Failed — nothing was saved.\n' + errors.map(e => `• ${e}`).join('\n');
     } else if (errors.length > 0) {
       finalReply += `\n\n⚠️ Partial: ${successCount}/${totalCmds} succeeded.\n` + errors.map(e => `• ${e}`).join('\n');
     } else if (totalCmds > 0) {
       finalReply += ` ✓ (${successCount} change${successCount !== 1 ? 's' : ''} saved)`;
     }
 
-    return res.status(200).json({
-      reply: finalReply,
-      results,
-      commandCount: totalCmds,
-      errors
-    });
+    return res.status(200).json({ reply: finalReply, results, commandCount: totalCmds, errors });
   }
 
   return res.status(400).json({ error: 'Unknown action' });
