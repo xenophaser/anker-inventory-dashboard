@@ -40,16 +40,29 @@ export default async function handler(req, res) {
     async function runCommand(cmd) {
       try {
         let url = `${SB_URL}/rest/v1/${cmd.table}`;
+        const params = new URLSearchParams();
+
+        // match supports comma-separated filters e.g. "type=eq.dispatch,status=eq.in-stock"
         if (cmd.match) {
-          const eqIdx = cmd.match.indexOf('=eq.');
-          if (eqIdx !== -1) {
-            const col = cmd.match.slice(0, eqIdx);
-            const val = cmd.match.slice(eqIdx + 4);
-            url += `?${col}=eq.${encodeURIComponent(val)}`;
-          } else {
-            url += `?${cmd.match}`;
+          const filters = cmd.match.split(',').map(f => f.trim());
+          for (const f of filters) {
+            const eqIdx = f.indexOf('=eq.');
+            if (eqIdx !== -1) {
+              params.append(f.slice(0, eqIdx), `eq.${f.slice(eqIdx + 4)}`);
+            } else {
+              // pass-through for other operators e.g. "ts=gte.2025-01-01"
+              const sep = f.indexOf('=');
+              if (sep !== -1) params.append(f.slice(0, sep), f.slice(sep + 1));
+            }
           }
         }
+
+        if (cmd.select) params.append('select', cmd.select);
+        if (cmd.order)  params.append('order',  cmd.order);
+        if (cmd.limit)  params.append('limit',  String(cmd.limit));
+
+        const qs = params.toString();
+        if (qs) url += '?' + qs;
 
         const method = cmd.type === 'insert' ? 'POST'
           : cmd.type === 'update' ? 'PATCH'
@@ -144,7 +157,9 @@ Rules:
 - Always log to activity_log when making changes (include msg, type, serial if applicable, ts as ISO string)
 - Dispatching serials: PATCH inventory set status="dispatched". Always verify the serial exists in-stock first with a select.
 - If asked to dispatch a serial not in the snapshot above, do a select first to check before updating.
-- To query dispatch history or count dispatched units, SELECT from the inventory table with match "status=eq.dispatched". Do NOT query activity_log with a match — activity_log has no indexed filters and will cause errors. For activity_log, always insert only, never select.
+- To query dispatch history, SELECT from activity_log with match "type=eq.dispatch", order "ts.desc", limit 20, select "msg,type,ts,serial,notes". This is valid — activity_log selects are allowed.
+- To count dispatched units, SELECT from inventory with match "status=eq.dispatched".
+- Commands support optional fields: "select" (columns), "order" (e.g. "ts.desc"), "limit" (number).
 - When adding units WITH serials: use the exact serial strings provided. Each serial = one insert command.
 - When adding WITHOUT serials: use serial "NO-SN-<SKUCODE>-<timestamp_ms>" where timestamp_ms is a 13-digit number. Never reuse the same timestamp for multiple placeholder serials — increment by 1 for each.
 - Always include updated_at as current ISO timestamp for inventory changes.
