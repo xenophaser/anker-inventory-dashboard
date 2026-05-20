@@ -1,11 +1,29 @@
 
+<!--
+  ============================================================
+  Anker Warehouse — Inventory Management System
+  ============================================================
+  Author     : Sergio A. Romero
+  Institution: Inter American University of Puerto Rico
+               Metropolitan Campus — Computer Science
+  Built with : Personal Supabase account & API keys
+  Version    : 2.1
+  Updated    : May 2026
+
+  Description:
+    Personal project built for warehouse inventory tracking
+    of Anker products. Manages stock levels, dispatch, RMA
+    returns, incoming damaged units, and outbound shipments.
+    Built and maintained independently — not an official
+    Windmar company system.
+  ============================================================
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Windmar · Anker Inventory</title>
-
 <style>
 :root{
   --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;--border2:#333;
@@ -136,6 +154,19 @@ tbody tr:last-child td{border-bottom:none}
 .cb-row label{cursor:pointer;flex:1}
 .sel-count{font-size:12px;color:var(--accent);font-family:var(--mono);margin-left:8px}
 
+/* ── Bulk return preview rows ── */
+.br-row{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono)}
+.br-row:last-child{border-bottom:none}
+.br-row.found{color:var(--accent)}
+.br-row.nf{color:var(--danger)}
+.br-row .br-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.br-row .br-model{color:var(--text2);font-size:11px;margin-left:4px;font-family:var(--sans)}
+.br-row .br-status{font-size:10px;opacity:.6;margin-left:auto}
+.br-summary{font-size:12px;color:var(--text3);padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:16px}
+.br-summary span{font-family:var(--mono)}
+.br-summary .ok{color:var(--accent)}
+.br-summary .bad{color:var(--danger)}
+
 /* ── Print styles ── */
 @media print {
   body * { visibility: hidden; }
@@ -171,8 +202,8 @@ tbody tr:last-child td{border-bottom:none}
   <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
   <div class="hdr-btns">
     <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
-    <button id="lock-btn" class="lock-badge" onclick="handleLockClick()">🔒 View only</button>
-    <button class="lock-badge" onclick="toggleAI()" id="ai-btn">✦ AI</button>
+    <button id="lock-btn" class="lock-badge" onclick="handleLockClick()">&#128274; View only</button>
+    <button class="lock-badge" onclick="toggleAI()" id="ai-btn">&#10022; AI</button>
     <button id="btn-add" class="btn sm gh" onclick="guardAction(function(){ openM('m-add'); })">+ Add item</button>
     <button id="btn-import" class="btn sm gh" onclick="guardAction(function(){ openM('m-import'); })">Import list</button>
     <button class="btn sm pri" onclick="exportCSV()">Export CSV</button>
@@ -180,13 +211,13 @@ tbody tr:last-child td{border-bottom:none}
 </header>
 <main class="main">
   <div class="stats">
-    <div class="stat"><div class="lbl">Total units</div><div class="val" id="s-total">—</div></div>
-    <div class="stat"><div class="lbl">In stock</div><div class="val green" id="s-stock">—</div></div>
-    <div class="stat"><div class="lbl">Dispatched</div><div class="val red" id="s-disp">—</div></div>
-    <div class="stat"><div class="lbl">RMA / Returns</div><div class="val orange" id="s-rma">—</div></div>
+    <div class="stat"><div class="lbl">Total units</div><div class="val" id="s-total">&#8212;</div></div>
+    <div class="stat"><div class="lbl">In stock</div><div class="val green" id="s-stock">&#8212;</div></div>
+    <div class="stat"><div class="lbl">Dispatched</div><div class="val red" id="s-disp">&#8212;</div></div>
+    <div class="stat"><div class="lbl">RMA / Returns</div><div class="val orange" id="s-rma">&#8212;</div></div>
     <div class="stat" id="s-damaged-card" onclick="go('rma');goRMASub('incoming')" style="cursor:pointer" title="Go to incoming damaged units">
-      <div class="lbl">⚠ Incoming damaged</div>
-      <div class="val orange" id="s-damaged">—</div>
+      <div class="lbl">&#9888; Incoming damaged</div>
+      <div class="val orange" id="s-damaged">&#8212;</div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px" id="s-damaged-sub"></div>
     </div>
   </div>
@@ -202,7 +233,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card">
       <div class="card-title">Quick dispatch</div>
       <div class="irow">
-        <input id="si" type="text" placeholder="Type, paste, or scan serial…" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')guardAction(addS)"/>
+        <input id="si" type="text" placeholder="Type, paste, or scan serial&#8230;" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')guardAction(addS)"/>
         <button class="btn" onclick="guardAction(addS)">Add</button>
         <button class="btn" onclick="guardAction(function(){ openM('m-paste'); })">Paste list</button>
       </div>
@@ -221,7 +252,7 @@ tbody tr:last-child td{border-bottom:none}
   <!-- INVENTORY TAB -->
   <div class="sec" id="sec-inventory">
     <div class="sr">
-      <input type="text" placeholder="Search serial, model…" oninput="renderInv(this.value)"/>
+      <input type="text" placeholder="Search serial, model&#8230;" oninput="renderInv(this.value)"/>
       <select onchange="sf=this.value;renderInv()" style="width:140px">
         <option value="">All statuses</option>
         <option value="in-stock">In stock</option>
@@ -244,8 +275,9 @@ tbody tr:last-child td{border-bottom:none}
 
     <!-- Returns log -->
     <div class="rma-subsec active" id="rmasub-returns">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:.75rem">
         <button class="btn" onclick="guardAction(function(){ openM('m-rma'); })">+ Log return</button>
+        <button class="btn pri sm" onclick="guardAction(function(){ openBulkRMA(); })">&#8697; Bulk return</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="rma-tbl"></div></div>
     </div>
@@ -276,14 +308,14 @@ tbody tr:last-child td{border-bottom:none}
 <!-- AI PANEL -->
 <div id="ai-panel">
   <div id="ai-panel-hdr">
-    <span>✦ Warehouse AI</span>
-    <button class="btn sm gh" onclick="toggleAI()" style="padding:2px 8px;font-size:11px">✕</button>
+    <span>&#10022; Warehouse AI</span>
+    <button class="btn sm gh" onclick="toggleAI()" style="padding:2px 8px;font-size:11px">&#10005;</button>
   </div>
   <div id="ai-messages">
     <div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div>
   </div>
   <div id="ai-input-row">
-    <input id="ai-input" type="text" placeholder="e.g. Add C300X, SKU A17231111…" onkeydown="if(event.key==='Enter')sendAI()"/>
+    <input id="ai-input" type="text" placeholder="e.g. Add C300X, SKU A17231111&#8230;" onkeydown="if(event.key==='Enter')sendAI()"/>
     <button class="btn pri sm" id="ai-send" onclick="sendAI()">Send</button>
   </div>
 </div>
@@ -291,11 +323,11 @@ tbody tr:last-child td{border-bottom:none}
 <!-- PASSWORD MODAL -->
 <div class="mbg" id="m-lock">
   <div class="modal">
-    <h3>🔐 Editor access</h3>
+    <h3>&#128272; Editor access</h3>
     <p id="lock-subtitle">Enter the password to unlock editing</p>
     <div class="fld"><input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/></div>
     <div id="lock-err"></div>
-    <div id="lock-spinner">Verifying…</div>
+    <div id="lock-spinner">Verifying&#8230;</div>
     <div class="ma">
       <button class="btn" onclick="closeM('m-lock')">Cancel</button>
       <button class="btn pri" onclick="submitLock()">Unlock</button>
@@ -307,7 +339,7 @@ tbody tr:last-child td{border-bottom:none}
 <div class="mbg" id="m-import">
   <div class="modal">
     <h3>Import inventory list</h3>
-    <div class="fld"><label>Paste list — Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838&#10;Anker SOLIX 400W&#9;A24371A1&#9;NVCL0120240725000481"></textarea></div>
+    <div class="fld"><label>Paste list &#8212; Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838&#10;Anker SOLIX 400W&#9;A24371A1&#9;NVCL0120240725000481"></textarea></div>
     <div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div>
     <p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p>
     <div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div>
@@ -324,7 +356,7 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="fld">
       <label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label>
-      <textarea id="add-sn-bulk" rows="8" placeholder="Optional — paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;…&#10;&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea>
+      <textarea id="add-sn-bulk" rows="8" placeholder="Optional &#8212; paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;&#8230;&#10;&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea>
       <div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div>
     </div>
     <div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div>
@@ -335,7 +367,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- RMA MODAL -->
+<!-- RMA SINGLE MODAL -->
 <div class="mbg" id="m-rma">
   <div class="modal">
     <h3>Log return / RMA</h3>
@@ -354,6 +386,39 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div>
     <div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div>
+  </div>
+</div>
+
+<!-- BULK RETURN MODAL -->
+<div class="mbg" id="m-rma-bulk">
+  <div class="modal" style="width:520px">
+    <h3>&#8697; Bulk return</h3>
+    <div class="fld">
+      <label>Reason <span id="bulk-restock-badge" style="display:none;margin-left:6px" class="sn-counter">&#10003; returns to stock</span></label>
+      <select id="bulk-reason" style="width:100%" onchange="updateBulkReasonHint(); renderBulkPreview()">
+        <option value="No cambio">No cambio</option>
+        <option value="Re coordinado">Re coordinado</option>
+        <option value="Cancelado">Cancelado</option>
+        <option value="Back to stock">Back to stock</option>
+        <option value="Damaged">Damaged</option>
+        <option value="Other">Other</option>
+      </select>
+      <div id="bulk-reason-hint" class="reason-hint restock">&#10003; Units will be returned to In Stock</div>
+    </div>
+    <div class="fld">
+      <label>Serial numbers <span id="bulk-sn-count" class="sn-counter" style="display:none">0</span></label>
+      <textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;MC4-10M-001&#10;&#8230;" oninput="updateBulkCount(); renderBulkPreview()"></textarea>
+    </div>
+    <div class="fld"><label>Notes (optional, applies to all)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div>
+    <!-- Preview -->
+    <div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;font-weight:500">Preview</div>
+      <div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div class="ma">
+      <button class="btn" onclick="closeM('m-rma-bulk')">Cancel</button>
+      <button class="btn pri" id="bulk-submit-btn" onclick="doBulkRMA()" disabled>Log returns</button>
+    </div>
   </div>
 </div>
 
@@ -384,7 +449,7 @@ tbody tr:last-child td{border-bottom:none}
 <!-- LOG INCOMING DAMAGED UNIT MODAL -->
 <div class="mbg" id="m-incoming">
   <div class="modal">
-    <h3>📥 Log incoming damaged unit</h3>
+    <h3>&#128229; Log incoming damaged unit</h3>
     <div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div>
     <div class="fld">
       <label>Condition</label>
@@ -405,13 +470,13 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- PRINT AREA (hidden, used for printing) -->
+<!-- PRINT AREA -->
 <div id="print-area" style="display:none"></div>
 
 <!-- CREATE SHIPMENT MODAL -->
 <div class="mbg" id="m-shipment">
   <div class="modal" style="width:520px">
-    <h3>📦 Create outbound shipment</h3>
+    <h3>&#128230; Create outbound shipment</h3>
     <div class="fld-row">
       <div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div>
       <div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div>
@@ -420,7 +485,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="fld">
       <label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label>
       <div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px">
-        <div class="empty">Loading waiting units…</div>
+        <div class="empty">Loading waiting units&#8230;</div>
       </div>
     </div>
     <div class="ma">
@@ -538,7 +603,6 @@ function stats(){
   document.getElementById("s-stock").textContent=inv.filter(function(i){return i.status==="in-stock";}).length;
   document.getElementById("s-disp").textContent=inv.filter(function(i){return i.status==="dispatched";}).length;
   document.getElementById("s-rma").textContent=inv.filter(function(i){return i.status==="rma";}).length;
-  // Incoming damaged card
   var waiting=rmaIncoming.filter(function(u){return u.status==="waiting";});
   var shipped=rmaIncoming.filter(function(u){return u.status==="shipped";}).length;
   document.getElementById("s-damaged").textContent=waiting.length;
@@ -583,13 +647,13 @@ function renderInv(q){
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"
-      +r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td></tr>";
+    return "<tr data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
+      +r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(""+esc(k)+"",""+esc(g.skuCode)+""); })' title='Edit model'>&#9998;</button></td></tr>";
   });
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
@@ -659,7 +723,7 @@ function renderShipments(){
         +"<div class='shipment-meta'>"+meta+"</div>"
       +"</div>"
       +"<div class='shipment-actions'>"
-        +"<button class='btn sm gh' onclick='exportShipmentCSV("+JSON.stringify(s).replace(/"/g,"&quot;")+")'>Export CSV</button>"
+        +"<button class='btn sm gh' onclick='exportShipmentCSV("+JSON.stringify(s).replace(/"/g,"&quot;")+")''>Export CSV</button>"
         +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", false)'>🖨 Shipping list</button>"
         +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", true)'>🖨 Full report</button>"
       +"</div>"
@@ -778,7 +842,7 @@ function printShipment(shipment, fullReport){
     +"</div>"
     +tableHTML
     +"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div>"
-    +"<script>window.onload=function(){window.print();}<\/script>"
+    +"<script>window.onload=function(){window.print();};<\/script>"
     +"</body></html>";
   var w=window.open("","_blank","width=900,height=700");
   w.document.write(html);
@@ -828,7 +892,7 @@ function doEdit(){
   var now=new Date().toISOString();
   Promise.all([
     sbPatch("inventory","sku=eq."+encodeURIComponent(origName),{sku:displayName,sku_code:newSku,updated_at:now}),
-    sbPost("activity_log",{msg:"Edited model: \""+origName+"\" → \""+displayName+"\""+(newSku?" ["+newSku+"]":""),ts:now})
+    sbPost("activity_log",{msg:"Edited model: \""+origName+"\" → \""+displayName+"\"+"+(newSku?" ["+newSku+"]":""),ts:now})
   ]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
@@ -908,6 +972,91 @@ function doRMA(){
   }).catch(function(){setSyncStatus("err","save failed");});
 }
 
+// ── BULK RETURN ───────────────────────────────────────────────
+function openBulkRMA(){
+  document.getElementById("bulk-sn-txt").value="";
+  document.getElementById("bulk-notes").value="";
+  document.getElementById("bulk-sn-count").style.display="none";
+  document.getElementById("bulk-preview-wrap").style.display="none";
+  document.getElementById("bulk-preview").innerHTML="";
+  document.getElementById("bulk-submit-btn").disabled=true;
+  document.getElementById("bulk-reason").value="No cambio";
+  updateBulkReasonHint();
+  openM("m-rma-bulk");
+  setTimeout(function(){ document.getElementById("bulk-sn-txt").focus(); },100);
+}
+
+function updateBulkReasonHint(){
+  var reason=document.getElementById("bulk-reason").value;
+  var hint=document.getElementById("bulk-reason-hint");
+  var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
+  hint.className="reason-hint "+(isRestock?"restock":"rma");
+  hint.textContent=isRestock?"✓ Units will be returned to In Stock":"⚠ Units will remain flagged as RMA";
+}
+
+function updateBulkCount(){
+  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var badge=document.getElementById("bulk-sn-count");
+  if(lines.length>0){ badge.textContent=lines.length+(lines.length===1?" serial":" serials"); badge.style.display="inline-block"; }
+  else { badge.style.display="none"; }
+}
+
+function renderBulkPreview(){
+  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
+  var wrap=document.getElementById("bulk-preview-wrap");
+  var preview=document.getElementById("bulk-preview");
+  var btn=document.getElementById("bulk-submit-btn");
+  if(!lines.length){ wrap.style.display="none"; btn.disabled=true; return; }
+  wrap.style.display="block";
+  var found=0, notFound=0;
+  var rows=lines.map(function(sn){
+    var item=inv.find(function(i){return i.serial.toUpperCase()===sn;});
+    if(item){ found++;
+      return "<div class='br-row found'><span class='br-icon'>&#10003;</span><span>"+esc(sn)+"</span><span class='br-model'>"+esc(item.sku)+"</span><span class='br-status'>"+esc(item.status)+"</span></div>";
+    } else { notFound++;
+      return "<div class='br-row nf'><span class='br-icon'>&#10007;</span><span>"+esc(sn)+"</span><span class='br-model' style='color:var(--danger)'>not found</span></div>";
+    }
+  }).join("");
+  preview.innerHTML=rows+"<div class='br-summary'><span class='ok'>&#10003; "+found+" found</span><span class='bad'>&#10007; "+notFound+" not found</span></div>";
+  btn.disabled=found===0;
+  btn.textContent=found>0?"Log "+found+" return"+(found===1?"":"s"):"Log returns";
+}
+
+async function doBulkRMA(){
+  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
+  var reason=document.getElementById("bulk-reason").value;
+  var notes=document.getElementById("bulk-notes").value.trim();
+  var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
+  var toProcess=lines.filter(function(sn){return inv.find(function(i){return i.serial.toUpperCase()===sn;});});
+  if(!toProcess.length){toast("No valid serials to process");return;}
+  setSyncStatus("syncing","saving "+toProcess.length+"...");
+  document.getElementById("bulk-submit-btn").disabled=true;
+  var now=new Date().toISOString();
+  try{
+    // Update all inventory statuses in parallel
+    var updates=toProcess.map(function(sn){
+      return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});
+    });
+    // Log each serial individually in the activity log
+    var logEntries=toProcess.map(function(sn){
+      var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" — "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" — "+reason+(notes?" ("+notes+")":"");
+      return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});
+    });
+    // Also log a single bulk summary entry
+    var summary=(newStatus==="in-stock"?"Bulk return to stock":"Bulk RMA")+": "+toProcess.length+" unit(s) — "+reason+(notes?" ("+notes+")":"");
+    logEntries.push(sbPost("activity_log",{msg:summary,type:"rma",serial:"",reason:reason,notes:notes,ts:now}));
+    await Promise.all([...updates,...logEntries]);
+    closeM("m-rma-bulk");
+    toast("✓ "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));
+    loadData();
+  } catch(e){
+    setSyncStatus("err","save failed");
+    toast("Error saving — try again");
+    document.getElementById("bulk-submit-btn").disabled=false;
+  }
+}
+
+// ── Import ────────────────────────────────────────────────────
 function doImport(){
   var text=document.getElementById("import-txt").value;
   var defName=document.getElementById("import-sku").value.trim()||"Unknown";
