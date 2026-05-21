@@ -474,7 +474,7 @@ function updateLockUI(){
   else { btn.textContent="🔒 View only"; btn.classList.remove("unlocked"); }
 }
 function handleLockClick(){
-  if(isUnlocked()){ setUnlocked(false); toast("Locked — view only"); }
+  if(isUnlocked()){ setUnlocked(false); sessionStorage.removeItem("wm_ai_pw"); toast("Locked — view only"); }
   else { pendingAction=null; openLock(); }
 }
 function openLock(){
@@ -495,7 +495,7 @@ async function submitLock(){
     var data=await res.json();
     document.getElementById("lock-spinner").style.display="none";
     if(data.ok){
-      setUnlocked(true); closeM("m-lock"); toast("✓ Unlocked — editing enabled");
+      setUnlocked(true); sessionStorage.setItem("wm_ai_pw", pw); closeM("m-lock"); toast("✓ Unlocked — editing enabled");
       if(pendingAction){ var fn=pendingAction; pendingAction=null; setTimeout(fn,150); }
     } else {
       document.getElementById("lock-err").textContent="Wrong password — try again";
@@ -604,7 +604,8 @@ function renderInv(q){
     var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
     return "<tr data-sku='"+esc(k)+"'>"
-      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td>"
+      +"<td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(k)+"</td>"
+      +"<td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(g.skuCode)+"</td>"
       +"<td style='font-family:var(--mono);font-size:13px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td>"
       +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td>"
       +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td>"
@@ -612,7 +613,7 @@ function renderInv(q){
       +"<td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td>"
       +"</tr>";
   });
-  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
 function renderRMA(){
@@ -1083,7 +1084,7 @@ async function sendAI(){
   document.getElementById("ai-send").disabled=true;
   var thinking=appendAIMsg("Thinking\u2026","system");
   try{
-    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory})});
+    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});
     var data=await res.json();
     thinking.remove();
     if(data.error){
