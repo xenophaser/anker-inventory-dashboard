@@ -16,18 +16,24 @@ export default async function handler(req, res) {
 
   // ── Chat ──────────────────────────────────────────────────
   if (action === 'chat') {
+    // Require the edit password to use the AI
+    const correct = process.env.EDIT_PASSWORD;
+    if (!correct) return res.status(500).json({ error: 'Server not configured' });
+    if (password !== correct) {
+      return res.status(401).json({ error: 'Unauthorized — unlock editor first' });
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'AI not configured' });
 
     const SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-    const SB_KEY = process.env.SUPABASE_KEY || "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+    const SB_KEY = process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
     const SB_HEADERS = {
       'Content-Type': 'application/json',
       'apikey': SB_KEY,
       'Authorization': `Bearer ${SB_KEY}`
     };
 
-    // Wrap any promise with a timeout so one slow step can't hang the whole function
     function withTimeout(promise, ms, label) {
       return Promise.race([
         promise,
