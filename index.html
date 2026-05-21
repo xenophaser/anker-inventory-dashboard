@@ -600,20 +600,19 @@ function renderInv(q){
   if(!skus.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
   var rows=skus.map(function(k){
     var g=groups[k];
-    var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
-    var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
+    var s=g.stock>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+g.stock+"</span>":"<span style='font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text3)'>0</span>";
+    var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
     return "<tr data-sku='"+esc(k)+"'>"
-      +"<td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(k)+"</td>"
-      +"<td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(g.skuCode)+"</td>"
-      +"<td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td>"
+      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td>"
+      +"<td style='font-family:var(--mono);font-size:13px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td>"
       +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td>"
       +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td>"
       +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td>"
       +"<td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td>"
       +"</tr>";
   });
-  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
 function renderRMA(){
