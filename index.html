@@ -7,7 +7,7 @@
   Institution: Inter American University of Puerto Rico
                Metropolitan Campus — Computer Science
   Built with : Personal Supabase account & API keys
-  Version    : 2.1
+  Version    : 2.2
   Updated    : May 2026
 
   Description:
@@ -132,29 +132,21 @@ tbody tr:last-child td{border-bottom:none}
 #lock-err{font-size:12px;color:var(--danger);text-align:center;margin-top:8px;min-height:18px}
 #lock-spinner{display:none;text-align:center;font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:8px}
 .readonly-btn{opacity:.35;cursor:not-allowed !important;pointer-events:none}
-
-/* ── RMA Sub-tabs ── */
 .rma-subtabs{display:flex;gap:2px;background:var(--surface);padding:3px;border-radius:var(--r);width:fit-content;border:1px solid var(--border)}
 .rma-subtab{padding:5px 14px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:12px;font-family:var(--sans);color:var(--text2);transition:all .15s}
 .rma-subtab.active{background:var(--surface2);color:var(--text);font-weight:500}
 .rma-subtab:hover:not(.active){color:var(--text);background:var(--surface2)}
 .rma-subsec{display:none}.rma-subsec.active{display:block}
-
-/* ── Shipment cards ── */
 .shipment-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
 .shipment-info{flex:1}
 .shipment-title{font-weight:600;font-size:14px;margin-bottom:3px}
 .shipment-meta{font-size:11px;color:var(--text3);font-family:var(--mono)}
 .shipment-actions{display:flex;gap:6px}
-
-/* ── Shipment picker checkboxes ── */
 .cb-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px}
 .cb-row:last-child{border:none}
 .cb-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
 .cb-row label{cursor:pointer;flex:1}
 .sel-count{font-size:12px;color:var(--accent);font-family:var(--mono);margin-left:8px}
-
-/* ── Bulk return preview rows ── */
 .br-row{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono)}
 .br-row:last-child{border-bottom:none}
 .br-row.found{color:var(--accent)}
@@ -166,21 +158,7 @@ tbody tr:last-child td{border-bottom:none}
 .br-summary span{font-family:var(--mono)}
 .br-summary .ok{color:var(--accent)}
 .br-summary .bad{color:var(--danger)}
-
-/* ── Print styles ── */
-@media print {
-  body * { visibility: hidden; }
-  #print-area, #print-area * { visibility: visible; }
-  #print-area { position: fixed; inset: 0; background: #fff; color: #000; padding: 2rem; font-family: Arial, sans-serif; }
-  #print-area h2 { font-size: 18px; margin-bottom: 4px; }
-  #print-area .print-meta { font-size: 12px; color: #555; margin-bottom: 1.5rem; border-bottom: 1px solid #ccc; padding-bottom: 8px; }
-  #print-area table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  #print-area th { text-align: left; border-bottom: 2px solid #000; padding: 6px 8px; font-size: 11px; text-transform: uppercase; }
-  #print-area td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
-  #print-area .print-footer { margin-top: 2rem; font-size: 11px; color: #888; }
-}
-
-/* ── AI Panel ── */
+@media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;inset:0;background:#fff;color:#000;padding:2rem;font-family:Arial,sans-serif}#print-area h2{font-size:18px;margin-bottom:4px}#print-area .print-meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:8px}#print-area table{width:100%;border-collapse:collapse;font-size:12px}#print-area th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}#print-area td{padding:6px 8px;border-bottom:1px solid #ddd}#print-area .print-footer{margin-top:2rem;font-size:11px;color:#888}}
 #ai-panel{position:fixed;bottom:0;right:24px;width:340px;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:100;display:none;flex-direction:column}
 #ai-panel.open{display:flex}
 #ai-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent)}
@@ -228,7 +206,6 @@ tbody tr:last-child td{border-bottom:none}
     <button class="tab" onclick="go('log')">Activity log</button>
   </div>
 
-  <!-- DISPATCH TAB -->
   <div class="sec active" id="sec-dispatch">
     <div class="card">
       <div class="card-title">Quick dispatch</div>
@@ -249,7 +226,6 @@ tbody tr:last-child td{border-bottom:none}
     <div id="recent"></div>
   </div>
 
-  <!-- INVENTORY TAB -->
   <div class="sec" id="sec-inventory">
     <div class="sr">
       <input type="text" placeholder="Search serial, model&#8230;" oninput="renderInv(this.value)"/>
@@ -263,7 +239,6 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
   </div>
 
-  <!-- RMA TAB -->
   <div class="sec" id="sec-rma">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="rma-subtabs">
@@ -272,8 +247,6 @@ tbody tr:last-child td{border-bottom:none}
         <button class="rma-subtab" onclick="goRMASub('shipments')">Shipments</button>
       </div>
     </div>
-
-    <!-- Returns log -->
     <div class="rma-subsec active" id="rmasub-returns">
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:.75rem">
         <button class="btn" onclick="guardAction(function(){ openM('m-rma'); })">+ Log return</button>
@@ -281,16 +254,12 @@ tbody tr:last-child td{border-bottom:none}
       </div>
       <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="rma-tbl"></div></div>
     </div>
-
-    <!-- Incoming damaged -->
     <div class="rma-subsec" id="rmasub-incoming">
       <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
         <button class="btn pri sm" onclick="guardAction(function(){ openM('m-incoming'); })">+ Log incoming unit</button>
       </div>
       <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="incoming-tbl"></div></div>
     </div>
-
-    <!-- Shipments -->
     <div class="rma-subsec" id="rmasub-shipments">
       <div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
         <button class="btn pri sm" onclick="guardAction(function(){ openM('m-shipment'); loadShipmentPicker(); })">+ Create shipment</button>
@@ -299,13 +268,11 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- LOG TAB -->
   <div class="sec" id="sec-log">
     <div class="card"><div id="log-wrap"></div></div>
   </div>
 </main>
 
-<!-- AI PANEL -->
 <div id="ai-panel">
   <div id="ai-panel-hdr">
     <span>&#10022; Warehouse AI</span>
@@ -320,7 +287,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- PASSWORD MODAL -->
 <div class="mbg" id="m-lock">
   <div class="modal">
     <h3>&#128272; Editor access</h3>
@@ -335,7 +301,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- IMPORT MODAL -->
 <div class="mbg" id="m-import">
   <div class="modal">
     <h3>Import inventory list</h3>
@@ -346,7 +311,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ADD ITEM MODAL -->
 <div class="mbg" id="m-add">
   <div class="modal">
     <h3>Add item</h3>
@@ -367,7 +331,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- RMA SINGLE MODAL -->
 <div class="mbg" id="m-rma">
   <div class="modal">
     <h3>Log return / RMA</h3>
@@ -389,7 +352,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- BULK RETURN MODAL -->
 <div class="mbg" id="m-rma-bulk">
   <div class="modal" style="width:520px">
     <h3>&#8697; Bulk return</h3>
@@ -410,7 +372,6 @@ tbody tr:last-child td{border-bottom:none}
       <textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;MC4-10M-001&#10;&#8230;" oninput="updateBulkCount(); renderBulkPreview()"></textarea>
     </div>
     <div class="fld"><label>Notes (optional, applies to all)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div>
-    <!-- Preview -->
     <div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;font-weight:500">Preview</div>
       <div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div>
@@ -422,7 +383,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- EDIT MODEL MODAL -->
 <div class="mbg" id="m-edit">
   <div class="modal">
     <h3>Edit model</h3>
@@ -437,7 +397,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- PASTE SERIALS MODAL -->
 <div class="mbg" id="m-paste">
   <div class="modal">
     <h3>Paste multiple serials</h3>
@@ -446,7 +405,6 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- LOG INCOMING DAMAGED UNIT MODAL -->
 <div class="mbg" id="m-incoming">
   <div class="modal">
     <h3>&#128229; Log incoming damaged unit</h3>
@@ -470,10 +428,8 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- PRINT AREA -->
 <div id="print-area" style="display:none"></div>
 
-<!-- CREATE SHIPMENT MODAL -->
 <div class="mbg" id="m-shipment">
   <div class="modal" style="width:520px">
     <h3>&#128230; Create outbound shipment</h3>
@@ -497,7 +453,7 @@ tbody tr:last-child td{border-bottom:none}
 
 <script>
 var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-var SB_KEY = "sb_publishable_GcNpfiTWoNgkRmAbXM_X2w_RDcGM18R";
+var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
 var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
@@ -592,7 +548,7 @@ function loadData(){
     rmaShipments=results[3];
     setSyncStatus("ok",inv.length+" units");
     render();
-  }).catch(function(){ setSyncStatus("err","offline"); toast("Connection error — check Supabase"); });
+  }).catch(function(e){ setSyncStatus("err","offline"); toast("Connection error — check Supabase"); console.error(e); });
 }
 
 // ── Render ────────────────────────────────────────────────────
@@ -647,13 +603,15 @@ function renderInv(q){
     var s=g.stock>0?"<span class='badge in-stock'>"+g.stock+"</span>":"<span style='color:var(--text3)'>0</span>";
     var d=g.dispatched>0?"<span class='badge dispatched'>"+g.dispatched+"</span>":"<span style='color:var(--text3)'>0</span>";
     var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr data-sku='"+esc(k)+"'><td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +esc(k)+"</td><td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +esc(g.skuCode)+"</td><td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest("tr"))'>"
-      +r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(""+esc(k)+"",""+esc(g.skuCode)+""); })' title='Edit model'>&#9998;</button></td></tr>";
+    return "<tr data-sku='"+esc(k)+"'>"
+      +"<td style='font-weight:600;font-size:14px;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(k)+"</td>"
+      +"<td style='font-family:var(--mono);font-size:12px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+esc(g.skuCode)+"</td>"
+      +"<td style='font-family:var(--mono);font-size:22px;font-weight:500;cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td>"
+      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td>"
+      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td>"
+      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td>"
+      +"<td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td>"
+      +"</tr>";
   });
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:110px'>SKU</th><th style='width:80px'>Total</th><th style='width:100px'>In stock</th><th style='width:100px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
@@ -679,7 +637,6 @@ function renderRecent(){
   wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>";}).join("")+"</div>";
 }
 
-// ── Incoming damaged ──────────────────────────────────────────
 function renderIncoming(){
   var wrap=document.getElementById("incoming-tbl");
   if(!rmaIncoming.length){wrap.innerHTML="<div class='empty'>No incoming units logged yet</div>";return;}
@@ -708,7 +665,6 @@ function doLogIncoming(){
   }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
 
-// ── Shipments ─────────────────────────────────────────────────
 function renderShipments(){
   var wrap=document.getElementById("shipments-list");
   if(!rmaShipments.length){wrap.innerHTML="<div class='card'><div class='empty'>No shipments created yet</div></div>";return;}
@@ -717,17 +673,14 @@ function renderShipments(){
     try{ serials=JSON.parse(s.serials||"[]"); }catch(e){}
     var dest=s.destination?"📦 "+esc(s.destination):"📦 Outbound shipment";
     var meta=fd(s.shipped_at)+" &nbsp;·&nbsp; "+s.serial_count+" unit(s)"+(s.notes?" &nbsp;·&nbsp; "+esc(s.notes):"");
+    var sd=JSON.stringify(s).replace(/"/g,"&quot;");
     return "<div class='shipment-card'>"
-      +"<div class='shipment-info'>"
-        +"<div class='shipment-title'>"+dest+"</div>"
-        +"<div class='shipment-meta'>"+meta+"</div>"
-      +"</div>"
+      +"<div class='shipment-info'><div class='shipment-title'>"+dest+"</div><div class='shipment-meta'>"+meta+"</div></div>"
       +"<div class='shipment-actions'>"
-        +"<button class='btn sm gh' onclick='exportShipmentCSV("+JSON.stringify(s).replace(/"/g,"&quot;")+")''>Export CSV</button>"
-        +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", false)'>🖨 Shipping list</button>"
-        +"<button class='btn sm gh' onclick='printShipment("+JSON.stringify(s).replace(/"/g,"&quot;")+", true)'>🖨 Full report</button>"
-      +"</div>"
-    +"</div>";
+        +"<button class='btn sm gh' onclick='exportShipmentCSV("+sd+")'>Export CSV</button>"
+        +"<button class='btn sm gh' onclick='printShipment("+sd+", false)'>🖨 Shipping list</button>"
+        +"<button class='btn sm gh' onclick='printShipment("+sd+", true)'>🖨 Full report</button>"
+      +"</div></div>";
   }).join("");
 }
 
@@ -738,13 +691,10 @@ function loadShipmentPicker(){
   picker.innerHTML=waiting.map(function(u){
     return "<div class='cb-row'>"
       +"<input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'>"
-      +"<label for='chk-"+esc(u.id)+"'>"
-        +"<strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong>"
-        +" <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"
-        +(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")
-      +"</label>"
-      +"<span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span>"
-    +"</div>";
+      +"<label for='chk-"+esc(u.id)+"'><strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong>"
+      +" <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"
+      +(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")
+      +"</label><span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span></div>";
   }).join("");
   updateSelCount();
   document.getElementById("ship-date").value=new Date().toISOString().split("T")[0];
@@ -766,20 +716,14 @@ async function doCreateShipment(){
   var serials=selectedUnits.map(function(u){return u.serial;});
   setSyncStatus("syncing","saving...");
   try{
-    await fetch(SB_URL+"/rest/v1/rma_shipments",{
-      method:"POST",
-      headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),
-      body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})
-    });
-    for(var i=0;i<checked.length;i++){
-      await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});
-    }
+    await fetch(SB_URL+"/rest/v1/rma_shipments",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})});
+    for(var i=0;i<checked.length;i++) await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});
     closeM("m-shipment");
     document.getElementById("ship-dest").value="";
     document.getElementById("ship-notes").value="";
     toast("✓ Shipment created — "+serials.length+" unit(s)");
     loadData();
-  } catch(e){ setSyncStatus("err","save failed"); toast("Error saving — try again"); }
+  }catch(e){ setSyncStatus("err","save failed"); toast("Error saving — try again"); }
 }
 
 function exportShipmentCSV(shipment){
@@ -801,7 +745,7 @@ function exportShipmentCSV(shipment){
   toast("CSV exported ✓");
 }
 
-function printShipment(shipment, fullReport){
+function printShipment(shipment,fullReport){
   var serials=[];
   try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
   var dest=shipment.destination||"Outbound Shipment";
@@ -811,45 +755,26 @@ function printShipment(shipment, fullReport){
   if(fullReport){
     var rows=serials.map(function(sn){
       var unit=rmaIncoming.find(function(u){return u.serial===sn;});
-      if(unit){
-        return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
-      }
+      if(unit) return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
       return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
     }).join("");
     tableHTML="<table><thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead><tbody>"+rows+"</tbody></table>";
   } else {
-    var rows=serials.map(function(sn,i){
-      return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";
-    }).join("");
+    var rows=serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");
     tableHTML="<table><thead><tr><th>#</th><th>Serial Number</th></tr></thead><tbody>"+rows+"</tbody></table>";
   }
   var title=fullReport?"Shipment Report":"Shipping List";
-  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>"
-    +"body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}"
-    +"h2{font-size:18px;margin-bottom:4px}"
-    +".meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}"
-    +"table{width:100%;border-collapse:collapse;font-size:12px}"
-    +"th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}"
-    +"td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}"
-    +".footer{margin-top:2rem;font-size:11px;color:#aaa}"
-    +"</style></head><body>"
+  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}h2{font-size:18px;margin-bottom:4px}.meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}.footer{margin-top:2rem;font-size:11px;color:#aaa}</style></head><body>"
     +"<h2>Windmar &middot; Anker Warehouse &mdash; "+title+"</h2>"
-    +"<div class='meta'>"
-      +"<strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;"
-      +"<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"
-      +(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")
-      +"<strong>Total units:</strong> "+serials.length
-    +"</div>"
+    +"<div class='meta'><strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"+(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")+"<strong>Total units:</strong> "+serials.length+"</div>"
     +tableHTML
     +"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div>"
-    +"<script>window.onload=function(){window.print();};<\/script>"
-    +"</body></html>";
+    +"<script>window.onload=function(){window.print();};<\/script></body></html>";
   var w=window.open("","_blank","width=900,height=700");
   w.document.write(html);
   w.document.close();
 }
 
-// ── RMA sub-tabs ──────────────────────────────────────────────
 function goRMASub(t){
   var subs=["returns","incoming","shipments"];
   document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",subs[i]===t);});
@@ -857,7 +782,6 @@ function goRMASub(t){
   document.getElementById("rmasub-"+t).classList.add("active");
 }
 
-// ── Helpers ───────────────────────────────────────────────────
 function fd(ts){
   if(!ts) return "";
   var d=new Date(ts);
@@ -892,8 +816,8 @@ function doEdit(){
   var now=new Date().toISOString();
   Promise.all([
     sbPatch("inventory","sku=eq."+encodeURIComponent(origName),{sku:displayName,sku_code:newSku,updated_at:now}),
-    sbPost("activity_log",{msg:"Edited model: \""+origName+"\" → \""+displayName+"\"+"+(newSku?" ["+newSku+"]":""),ts:now})
-  ]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();})
+    sbPost("activity_log",{msg:"Edited model: \""+origName+"\" \u2192 \""+displayName+"\""+(newSku?" ["+newSku+"]":""),ts:now})
+  ]).then(function(){closeM("m-edit");toast("Model updated \u2713");loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
 
@@ -951,7 +875,7 @@ function updateReasonHint(){
   var hint=document.getElementById("reason-hint");
   var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
   hint.className="reason-hint "+(isRestock?"restock":"rma");
-  hint.textContent=isRestock?"✓ Unit will be returned to In Stock":"⚠ Unit will remain flagged as RMA";
+  hint.textContent=isRestock?"\u2713 Unit will be returned to In Stock":"\u26a0 Unit will remain flagged as RMA";
 }
 
 function doRMA(){
@@ -962,17 +886,16 @@ function doRMA(){
   var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
   setSyncStatus("syncing","saving...");
   var now=new Date().toISOString();
-  var logMsg=newStatus==="in-stock"?"Returned to stock: "+serial+" — "+reason+(notes?" ("+notes+")":""):"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":"");
+  var logMsg=newStatus==="in-stock"?"Returned to stock: "+serial+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+serial+" \u2014 "+reason+(notes?" ("+notes+")":"");
   Promise.all([
     sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),
     sbPost("activity_log",{msg:logMsg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
   ]).then(function(){
     closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";
-    toast(newStatus==="in-stock"?"✓ Unit returned to stock":"RMA logged");loadData();
+    toast(newStatus==="in-stock"?"\u2713 Unit returned to stock":"RMA logged");loadData();
   }).catch(function(){setSyncStatus("err","save failed");});
 }
 
-// ── BULK RETURN ───────────────────────────────────────────────
 function openBulkRMA(){
   document.getElementById("bulk-sn-txt").value="";
   document.getElementById("bulk-notes").value="";
@@ -991,7 +914,7 @@ function updateBulkReasonHint(){
   var hint=document.getElementById("bulk-reason-hint");
   var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
   hint.className="reason-hint "+(isRestock?"restock":"rma");
-  hint.textContent=isRestock?"✓ Units will be returned to In Stock":"⚠ Units will remain flagged as RMA";
+  hint.textContent=isRestock?"\u2713 Units will be returned to In Stock":"\u26a0 Units will remain flagged as RMA";
 }
 
 function updateBulkCount(){
@@ -1033,30 +956,24 @@ async function doBulkRMA(){
   document.getElementById("bulk-submit-btn").disabled=true;
   var now=new Date().toISOString();
   try{
-    // Update all inventory statuses in parallel
-    var updates=toProcess.map(function(sn){
-      return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});
-    });
-    // Log each serial individually in the activity log
+    var updates=toProcess.map(function(sn){return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});});
     var logEntries=toProcess.map(function(sn){
-      var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" — "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" — "+reason+(notes?" ("+notes+")":"");
+      var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":"");
       return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});
     });
-    // Also log a single bulk summary entry
-    var summary=(newStatus==="in-stock"?"Bulk return to stock":"Bulk RMA")+": "+toProcess.length+" unit(s) — "+reason+(notes?" ("+notes+")":"");
+    var summary=(newStatus==="in-stock"?"Bulk return to stock":"Bulk RMA")+": "+toProcess.length+" unit(s) \u2014 "+reason+(notes?" ("+notes+")":"");
     logEntries.push(sbPost("activity_log",{msg:summary,type:"rma",serial:"",reason:reason,notes:notes,ts:now}));
     await Promise.all([...updates,...logEntries]);
     closeM("m-rma-bulk");
-    toast("✓ "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));
+    toast("\u2713 "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));
     loadData();
-  } catch(e){
+  }catch(e){
     setSyncStatus("err","save failed");
     toast("Error saving — try again");
     document.getElementById("bulk-submit-btn").disabled=false;
   }
 }
 
-// ── Import ────────────────────────────────────────────────────
 function doImport(){
   var text=document.getElementById("import-txt").value;
   var defName=document.getElementById("import-sku").value.trim()||"Unknown";
@@ -1083,9 +1000,7 @@ function doImport(){
   var batches=[];
   for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
   var chain=Promise.resolve();
-  batches.forEach(function(batch){
-    chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});
-  });
+  batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
   chain.then(function(){return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});})
   .then(function(){closeM("m-import");document.getElementById("import-txt").value="";toast("Imported "+items.length+" items");loadData();})
   .catch(function(){setSyncStatus("err","import failed");toast("Import error — try again");});
@@ -1129,7 +1044,7 @@ function doAdd(){
   var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
   var chain=Promise.resolve();
   batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
-  chain.then(function(){var msg="Added "+items.length+" unit(s) — "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});})
+  chain.then(function(){var msg="Added "+items.length+" unit(s) \u2014 "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});})
   .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
@@ -1154,7 +1069,6 @@ window.addEventListener("click",function(e){if(e.target.classList.contains("mbg"
 var tt;
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";clearTimeout(tt);tt=setTimeout(function(){t.style.opacity="0";},2500);}
 
-// ── AI Assistant ──────────────────────────────────────────────
 var aiHistory=[];
 function toggleAI(){
   var panel=document.getElementById("ai-panel");
@@ -1168,7 +1082,7 @@ async function sendAI(){
   appendAIMsg(msg,"user");
   input.value="";
   document.getElementById("ai-send").disabled=true;
-  var thinking=appendAIMsg("Thinking…","system");
+  var thinking=appendAIMsg("Thinking\u2026","system");
   try{
     var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory})});
     var data=await res.json();
@@ -1185,7 +1099,7 @@ async function sendAI(){
     }
   }catch(e){
     thinking.remove();
-    appendAIMsg("Connection error — try again","system");
+    appendAIMsg("Connection error \u2014 try again","system");
   }
   document.getElementById("ai-send").disabled=false;
   document.getElementById("ai-input").focus();
@@ -1200,7 +1114,6 @@ function appendAIMsg(text,role){
   return div;
 }
 
-// Init
 updateLockUI();
 loadData();
 </script>
