@@ -7,7 +7,7 @@
   Institution: Inter American University of Puerto Rico
                Metropolitan Campus — Computer Science
   Built with : Personal Supabase account & API keys
-  Version    : 2.2
+  Version    : 2.3
   Updated    : May 2026
 
   Description:
@@ -525,12 +525,14 @@ function setSyncStatus(s,label){
 }
 
 // ── Load data ─────────────────────────────────────────────────
+// FIX v2.3: Increased limit from 1000 to 3000 to fetch all inventory in one call
+// and avoid pagination bug that caused incorrect counts per SKU.
 function fetchAllInventory(offset,accumulated){
   offset=offset||0; accumulated=accumulated||[];
-  return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=1000&offset="+offset,{headers:HEADERS})
+  return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=3000&offset="+offset,{headers:HEADERS})
     .then(function(r){return r.json();}).then(function(rows){
       accumulated=accumulated.concat(rows);
-      if(rows.length===1000) return fetchAllInventory(offset+1000,accumulated);
+      if(rows.length===3000) return fetchAllInventory(offset+3000,accumulated);
       return accumulated;
     });
 }
