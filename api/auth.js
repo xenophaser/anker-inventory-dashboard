@@ -16,7 +16,6 @@ export default async function handler(req, res) {
 
   // ── Chat ──────────────────────────────────────────────────
   if (action === 'chat') {
-    // Require the edit password to use the AI
     const correct = process.env.EDIT_PASSWORD;
     if (!correct) return res.status(500).json({ error: 'Server not configured' });
     if (password !== correct) {
@@ -34,156 +33,216 @@ export default async function handler(req, res) {
       'Authorization': `Bearer ${SB_KEY}`
     };
 
-    function withTimeout(promise, ms, label) {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout: ${label} took >${ms}ms`)), ms)
-        )
-      ]);
+    // ── Tool implementations ───────────────────────────────
+    async function tool_get_inventory({ sku_code, status, location, limit = 50 }) {
+      const params = new URLSearchParams();
+      params.append('select', 'serial,sku,sku_code,status,location,ref,notes,updated_at');
+      params.append('order', 'sku.asc,serial.asc');
+      params.append('limit', String(Math.min(limit, 200)));
+      if (sku_code) params.append('sku_code', `eq.${sku_code}`);
+      if (status)   params.append('status', `eq.${status}`);
+      if (location) params.append('location', `eq.${location}`);
+      const r = await fetch(`${SB_URL}/rest/v1/inventory?${params}`, { headers: SB_HEADERS });
+      if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
+      return await r.json();
     }
 
-    async function runCommand(cmd) {
-      try {
-        let url = `${SB_URL}/rest/v1/${cmd.table}`;
-        const params = new URLSearchParams();
+    async function tool_get_serial({ serial }) {
+      const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
+      if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
+      const rows = await r.json();
+      return rows[0] || null;
+    }
 
-        if (cmd.match) {
-          const filters = cmd.match.split(',').map(f => f.trim());
-          for (const f of filters) {
-            const eqIdx = f.indexOf('=eq.');
-            if (eqIdx !== -1) {
-              params.append(f.slice(0, eqIdx), `eq.${f.slice(eqIdx + 4)}`);
-            } else {
-              const sep = f.indexOf('=');
-              if (sep !== -1) params.append(f.slice(0, sep), f.slice(sep + 1));
-            }
-          }
-        }
+    async function tool_dispatch_unit({ serial, ref }) {
+      const now = new Date().toISOString();
+      // Verify exists and is in-stock
+      const item = await tool_get_serial({ serial });
+      if (!item) return { ok: false, error: `Serial ${serial} not found` };
+      if (item.status !== 'in-stock') return { ok: false, error: `Serial ${serial} is ${item.status}, not in-stock` };
+      // Update inventory
+      await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}`, {
+        method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: 'dispatched', ref: ref || '', location: null, updated_at: now })
+      });
+      // Log
+      await fetch(`${SB_URL}/rest/v1/activity_log`, {
+        method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ msg: `Dispatched via AI: ${serial}${ref ? ' [' + ref + ']' : ''}`, type: 'dispatch', serial, ts: now })
+      });
+      return { ok: true, serial, model: item.sku };
+    }
 
-        if (cmd.select) params.append('select', cmd.select);
-        if (cmd.order)  params.append('order',  cmd.order);
-        if (cmd.limit)  params.append('limit',  String(cmd.limit));
+    async function tool_log_return({ serial, reason, notes }) {
+      const now = new Date().toISOString();
+      const RESTOCK = ["No cambio", "Re coordinado", "Cancelado", "Back to stock"];
+      const newStatus = RESTOCK.includes(reason) ? 'in-stock' : 'rma';
+      const item = await tool_get_serial({ serial });
+      if (!item) return { ok: false, error: `Serial ${serial} not found` };
+      await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}`, {
+        method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: newStatus, updated_at: now })
+      });
+      const logMsg = newStatus === 'in-stock'
+        ? `Returned to stock via AI: ${serial} — ${reason}${notes ? ' (' + notes + ')' : ''}`
+        : `RMA via AI: ${serial} — ${reason}${notes ? ' (' + notes + ')' : ''}`;
+      await fetch(`${SB_URL}/rest/v1/activity_log`, {
+        method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ msg: logMsg, type: 'rma', serial, reason, notes: notes || '', ts: now })
+      });
+      return { ok: true, serial, new_status: newStatus, model: item.sku };
+    }
 
-        const qs = params.toString();
-        if (qs) url += '?' + qs;
+    async function tool_update_location({ serial, location }) {
+      const item = await tool_get_serial({ serial });
+      if (!item) return { ok: false, error: `Serial ${serial} not found` };
+      await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}`, {
+        method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ location: location || null })
+      });
+      return { ok: true, serial, location: location || null };
+    }
 
-        const method = cmd.type === 'insert' ? 'POST'
-          : cmd.type === 'update' ? 'PATCH'
-          : cmd.type === 'delete' ? 'DELETE'
-          : 'GET';
+    async function tool_get_activity_log({ limit = 20, type, date_from, date_after }) {
+      const params = new URLSearchParams();
+      params.append('select', 'msg,type,serial,reason,notes,ts');
+      params.append('order', 'ts.desc');
+      params.append('limit', String(Math.min(limit, 100)));
+      if (type)       params.append('type', `eq.${type}`);
+      if (date_from)  params.append('ts', `gte.${date_from}`);
+      if (date_after) params.append('ts', `gte.${date_after}`);
+      const r = await fetch(`${SB_URL}/rest/v1/activity_log?${params}`, { headers: SB_HEADERS });
+      if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
+      return await r.json();
+    }
 
-        const isRead = method === 'GET' || method === 'DELETE';
-        const sbRes = await fetch(url, {
-          method,
-          headers: {
-            ...SB_HEADERS,
-            'Prefer': cmd.type === 'select'
-              ? 'return=representation'
-              : 'resolution=ignore-duplicates,return=minimal'
+    async function tool_get_inventory_summary() {
+      const params = new URLSearchParams();
+      params.append('select', 'sku,sku_code,status');
+      params.append('limit', '5000');
+      const r = await fetch(`${SB_URL}/rest/v1/inventory?${params}`, { headers: SB_HEADERS });
+      if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
+      const rows = await r.json();
+      const models = {};
+      for (const row of rows) {
+        if (!models[row.sku]) models[row.sku] = { sku_code: row.sku_code || '', in_stock: 0, dispatched: 0, rma: 0 };
+        if (row.status === 'in-stock') models[row.sku].in_stock++;
+        else if (row.status === 'dispatched') models[row.sku].dispatched++;
+        else if (row.status === 'rma') models[row.sku].rma++;
+      }
+      return Object.entries(models).map(([sku, d]) => ({ model: sku, sku_code: d.sku_code, ...d }));
+    }
+
+    // ── Tool definitions for Claude ────────────────────────
+    const TOOLS = [
+      {
+        name: "get_inventory_summary",
+        description: "Get a summary of all inventory models with in-stock, dispatched, and RMA counts. Use this for general inventory questions.",
+        input_schema: { type: "object", properties: {}, required: [] }
+      },
+      {
+        name: "get_inventory",
+        description: "Get a list of inventory units, optionally filtered by SKU code, status, or location.",
+        input_schema: {
+          type: "object",
+          properties: {
+            sku_code: { type: "string", description: "Filter by SKU code, e.g. 'A1723111'" },
+            status: { type: "string", enum: ["in-stock", "dispatched", "rma"], description: "Filter by status" },
+            location: { type: "string", description: "Filter by warehouse location, e.g. 'NDC3'" },
+            limit: { type: "integer", description: "Max results (default 50, max 200)" }
           },
-          body: (!isRead && cmd.data) ? JSON.stringify(cmd.data) : undefined
-        });
-
-        if (!sbRes.ok) {
-          let errBody = '';
-          try { errBody = await sbRes.text(); } catch(_) {}
-          return { ok: false, status: sbRes.status, error: errBody || `HTTP ${sbRes.status}`, cmd };
+          required: []
         }
-
-        if (cmd.type === 'select') {
-          const rows = await sbRes.json();
-          return { ok: true, rows, cmd };
+      },
+      {
+        name: "get_serial",
+        description: "Look up a specific unit by serial number.",
+        input_schema: {
+          type: "object",
+          properties: {
+            serial: { type: "string", description: "The serial number to look up" }
+          },
+          required: ["serial"]
         }
-
-        return { ok: true, cmd };
-      } catch (e) {
-        return { ok: false, error: e.message, cmd };
+      },
+      {
+        name: "dispatch_unit",
+        description: "Dispatch a unit — marks it as dispatched, clears its location, and logs the activity. Only works for in-stock units.",
+        input_schema: {
+          type: "object",
+          properties: {
+            serial: { type: "string", description: "Serial number to dispatch" },
+            ref: { type: "string", description: "Order or reference number (optional)" }
+          },
+          required: ["serial"]
+        }
+      },
+      {
+        name: "log_return",
+        description: "Log a unit return or RMA. Reasons that return to stock: 'No cambio', 'Re coordinado', 'Cancelado', 'Back to stock'. Reasons that flag as RMA: 'Damaged', 'Other'.",
+        input_schema: {
+          type: "object",
+          properties: {
+            serial: { type: "string", description: "Serial number being returned" },
+            reason: { type: "string", enum: ["No cambio", "Re coordinado", "Cancelado", "Back to stock", "Damaged", "Other"], description: "Return reason" },
+            notes: { type: "string", description: "Optional notes" }
+          },
+          required: ["serial", "reason"]
+        }
+      },
+      {
+        name: "update_location",
+        description: "Update the warehouse location for a specific unit.",
+        input_schema: {
+          type: "object",
+          properties: {
+            serial: { type: "string", description: "Serial number" },
+            location: { type: "string", description: "New location code, e.g. 'NDC3'. Leave empty to clear." }
+          },
+          required: ["serial"]
+        }
+      },
+      {
+        name: "get_activity_log",
+        description: "Get recent activity log entries, optionally filtered by type or date.",
+        input_schema: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of entries to return (default 20, max 100)" },
+            type: { type: "string", enum: ["dispatch", "rma", "add"], description: "Filter by activity type" },
+            date_from: { type: "string", description: "ISO date string to filter from, e.g. '2026-05-01T00:00:00Z'" }
+          },
+          required: []
+        }
       }
-    }
-
-    // ── Inventory snapshot (3s timeout, non-fatal) ─────────
-    let inventoryContext = '';
-    try {
-      const [stockRes, dispRes, rmaRes] = await withTimeout(
-        Promise.all([
-          fetch(`${SB_URL}/rest/v1/inventory?status=eq.in-stock&select=serial,sku,sku_code&limit=1000`, { headers: SB_HEADERS }),
-          fetch(`${SB_URL}/rest/v1/inventory?status=eq.dispatched&select=count`, {
-            headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
-          }),
-          fetch(`${SB_URL}/rest/v1/inventory?status=eq.rma&select=count`, {
-            headers: { ...SB_HEADERS, 'Prefer': 'count=exact', 'Range-Unit': 'items', 'Range': '0-0' }
-          })
-        ]),
-        3000,
-        'inventory snapshot'
-      );
-
-      const stockItems = stockRes.ok ? await stockRes.json() : [];
-      const dispCount = dispRes.headers.get('content-range')?.split('/')?.[1] || '?';
-      const rmaCount = rmaRes.headers.get('content-range')?.split('/')?.[1] || '?';
-
-      const modelMap = {};
-      for (const item of stockItems) {
-        if (!modelMap[item.sku]) modelMap[item.sku] = { skuCode: item.sku_code || '', count: 0 };
-        modelMap[item.sku].count++;
-      }
-      const modelLines = Object.entries(modelMap)
-        .map(([sku, d]) => `  - ${sku}${d.skuCode ? ' [' + d.skuCode + ']' : ''}: ${d.count} in stock`)
-        .join('\n');
-
-      inventoryContext = `\nCURRENT INVENTORY SNAPSHOT (live from database):
-In stock: ${stockItems.length} units across these models:
-${modelLines || '  (none)'}
-Dispatched: ${dispCount} units total
-RMA: ${rmaCount} units total\n`;
-    } catch (e) {
-      inventoryContext = `\n(Inventory snapshot unavailable: ${e.message})\n`;
-    }
+    ];
 
     const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico.
 
-The inventory table has: serial (PK), sku (model name), sku_code, status ("in-stock"/"dispatched"/"rma"), ref, notes, updated_at.
-The activity_log table has: msg, type ("dispatch"/"rma"/"add"/""), serial, reason, notes, ts.
-${inventoryContext}
-CRITICAL OUTPUT FORMAT: Respond with ONLY a single valid JSON object — no markdown, no backticks.
+You have access to tools that let you query and update the warehouse inventory in real time.
 
-{ "reply": "Plain English description", "commands": [] }
+The warehouse uses location codes like NDC3, NDB4, NDC5, etc. (N=Norte, D=rack D, C/B=floor, number=section).
 
-The "reply" field must ALWAYS be plain English — never JSON or code.
-For read-only questions, leave "commands" as [].
+Guidelines:
+- Always verify a serial exists before taking action on it
+- For dispatch: confirm the unit is in-stock first
+- Be concise and clear in your responses — warehouse staff are busy
+- When showing inventory lists, format them clearly
+- For bulk operations, warn the user and confirm before proceeding
+- Respond in the same language the user writes in (Spanish or English)`;
 
-Example correct: {"reply":"There are 142 dispatched units.","commands":[]}
+    // ── Agentic tool-use loop ──────────────────────────────
+    const cleanHistory = (history || []).slice(-10).filter(m => typeof m.content === 'string');
+    let messages = [...cleanHistory, { role: 'user', content: message }];
 
-Rules:
-- Always log to activity_log when making changes
-- Dispatching: PATCH inventory set status="dispatched". Verify serial exists first.
-- To query dispatch history: SELECT from activity_log, match "type=eq.dispatch", order "ts.desc", limit 20
-- To count dispatched: SELECT from inventory, match "status=eq.dispatched"
-- Commands support: "select" (columns), "order" (e.g. "ts.desc"), "limit" (number)
-- Adding WITH serials: one insert per serial. WITHOUT serials: serial = "NO-SN-<SKUCODE>-<timestamp_ms>"
-- Always include updated_at as ISO timestamp for inventory changes
-- Cap bulk operations at 50 commands — tell user to split if more needed
-- Do NOT claim success in reply — describe intended action only
-- NEVER make up serials or data`;
+    let finalReply = '';
+    let commandCount = 0;
+    const MAX_ITERATIONS = 5;
 
-    const cleanHistory = (history || []).slice(-10).map(m => {
-      if (m.role === 'assistant') {
-        const t = (m.content || '').trim();
-        if (t.startsWith('{') || t.startsWith('[')) {
-          return { role: 'assistant', content: '(previous action completed)' };
-        }
-      }
-      return m;
-    });
-
-    const messages = [...cleanHistory, { role: 'user', content: message }];
-
-    // ── Call AI (6s timeout) ───────────────────────────────
-    let text = '';
-    try {
-      const aiResponse = await withTimeout(
-        fetch('https://api.anthropic.com/v1/messages', {
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      let aiData;
+      try {
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -194,66 +253,64 @@ Rules:
             model: 'claude-haiku-4-5-20251001',
             max_tokens: 1024,
             system: SYSTEM,
+            tools: TOOLS,
             messages
           })
-        }).then(r => r.json()),
-        6000, 'AI response'
-      );
-      text = aiResponse.content?.[0]?.text || '';
-    } catch (e) {
-      return res.status(200).json({
-        reply: `⏱ Timed out (${e.message}). Try a simpler request or split bulk operations.`,
-        results: [], commandCount: 0, errors: [e.message]
-      });
-    }
-
-    if (!text) {
-      return res.status(200).json({ reply: 'No response from AI — try again.', results: [], commandCount: 0 });
-    }
-
-    // ── Parse AI response ──────────────────────────────────
-    let parsed;
-    try {
-      parsed = JSON.parse(text.replace(/```json\n?|```/g, '').trim());
-    } catch(e) {
-      return res.status(200).json({ reply: text, results: [], commandCount: 0 });
-    }
-
-    const commands = (parsed.commands || []).slice(0, 50);
-
-    // ── Run commands in parallel batches of 5 ─────────────
-    const results = [], errors = [];
-    let successCount = 0;
-    for (let i = 0; i < commands.length; i += 5) {
-      const batch = commands.slice(i, i + 5);
-      const batchResults = await Promise.all(batch.map(cmd => runCommand(cmd)));
-      for (const result of batchResults) {
-        if (result.ok) {
-          if (result.rows) results.push(result.rows);
-          if (result.cmd.type !== 'select') successCount++;
-        } else {
-          errors.push(`[${result.cmd.type} ${result.cmd.table}${result.cmd.match ? ' where ' + result.cmd.match : ''}] ${result.error}`);
-        }
+        });
+        aiData = await aiRes.json();
+      } catch (e) {
+        return res.status(200).json({ reply: `Connection error: ${e.message}`, commandCount: 0 });
       }
+
+      // Add assistant response to messages
+      messages.push({ role: 'assistant', content: aiData.content });
+
+      // Check stop reason
+      if (aiData.stop_reason === 'end_turn') {
+        // Extract text reply
+        const textBlock = aiData.content.find(b => b.type === 'text');
+        finalReply = textBlock?.text || 'Done.';
+        break;
+      }
+
+      if (aiData.stop_reason === 'tool_use') {
+        // Execute all tool calls
+        const toolResults = [];
+        for (const block of aiData.content) {
+          if (block.type !== 'tool_use') continue;
+          commandCount++;
+          let result;
+          try {
+            switch (block.name) {
+              case 'get_inventory_summary': result = await tool_get_inventory_summary(); break;
+              case 'get_inventory':         result = await tool_get_inventory(block.input); break;
+              case 'get_serial':            result = await tool_get_serial(block.input); break;
+              case 'dispatch_unit':         result = await tool_dispatch_unit(block.input); break;
+              case 'log_return':            result = await tool_log_return(block.input); break;
+              case 'update_location':       result = await tool_update_location(block.input); break;
+              case 'get_activity_log':      result = await tool_get_activity_log(block.input); break;
+              default: result = { error: `Unknown tool: ${block.name}` };
+            }
+          } catch (e) {
+            result = { error: e.message };
+          }
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: block.id,
+            content: JSON.stringify(result)
+          });
+        }
+        // Feed results back
+        messages.push({ role: 'user', content: toolResults });
+        continue;
+      }
+
+      // Unexpected stop
+      finalReply = 'Unexpected response from AI.';
+      break;
     }
 
-    // ── Build final reply ──────────────────────────────────
-    let rawReply = parsed.reply || '';
-    if (!rawReply || rawReply.trim().startsWith('{') || rawReply.trim().startsWith('[')) {
-      rawReply = commands.length > 0 ? 'Processing your request…' : 'Done.';
-    }
-    let finalReply = rawReply;
-    const totalCmds = commands.filter(c => c.type !== 'select').length;
-
-    if (errors.length > 0 && successCount === 0) {
-      finalReply = '❌ Failed — nothing was saved.\n' + errors.map(e => `• ${e}`).join('\n');
-    } else if (errors.length > 0) {
-      finalReply += `\n\n⚠️ Partial: ${successCount}/${totalCmds} succeeded.\n` + errors.map(e => `• ${e}`).join('\n');
-    } else if (totalCmds > 0) {
-      finalReply += ` ✓ (${successCount} change${successCount !== 1 ? 's' : ''} saved)`;
-    }
-
-    return res.status(200).json({ reply: finalReply, results, commandCount: totalCmds, errors });
+    return res.status(200).json({ reply: finalReply || 'Done.', commandCount });
   }
 
   return res.status(400).json({ error: 'Unknown action' });
