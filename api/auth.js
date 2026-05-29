@@ -34,17 +34,28 @@ export default async function handler(req, res) {
     };
 
     // ── Tool implementations ───────────────────────────────
-    async function tool_get_inventory({ sku_code, status, location, limit = 50 }) {
+    async function tool_get_inventory({ sku_code, status, location, limit = 1000 }) {
       const params = new URLSearchParams();
       params.append('select', 'serial,sku,sku_code,status,location,ref,notes,updated_at');
       params.append('order', 'sku.asc,serial.asc');
-      params.append('limit', String(Math.min(limit, 200)));
+      params.append("limit", String(Math.min(limit, 2000)));
       if (sku_code) params.append('sku_code', `eq.${sku_code}`);
       if (status)   params.append('status', `eq.${status}`);
       if (location) params.append('location', `eq.${location}`);
       const r = await fetch(`${SB_URL}/rest/v1/inventory?${params}`, { headers: SB_HEADERS });
       if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
-      return await r.json();
+      const rows = await r.json();
+      // If large result, return aggregated summary instead of raw rows
+      if (rows.length > 100) {
+        const byStatus = {};
+        const byLocation = {};
+        for (const row of rows) {
+          byStatus[row.status] = (byStatus[row.status] || 0) + 1;
+          if (row.location) byLocation[row.location] = (byLocation[row.location] || 0) + 1;
+        }
+        return { total: rows.length, by_status: byStatus, by_location: byLocation, sample: rows.slice(0, 5) };
+      }
+      return rows;
     }
 
     async function tool_get_serial({ serial }) {
@@ -142,14 +153,15 @@ export default async function handler(req, res) {
       },
       {
         name: "get_inventory",
-        description: "Get a list of inventory units, optionally filtered by SKU code, status, or location.",
+        description: "Get a list of inventory units, optionally filtered by model name (partial), SKU code, status, or location. Use sku_name for partial model name search (e.g. 'C300X', 'F2600', '400W').",
         input_schema: {
           type: "object",
           properties: {
-            sku_code: { type: "string", description: "Filter by SKU code, e.g. 'A1723111'" },
+            sku_name: { type: "string", description: "Partial model name to search, e.g. 'C300X', 'F2600', '400W', 'BP2600'" },
+            sku_code: { type: "string", description: "Filter by exact SKU code, e.g. 'A1723111'" },
             status: { type: "string", enum: ["in-stock", "dispatched", "rma"], description: "Filter by status" },
             location: { type: "string", description: "Filter by warehouse location, e.g. 'NDC3'" },
-            limit: { type: "integer", description: "Max results (default 50, max 200)" }
+            limit: { type: "integer", description: "Max results (default 1000, max 2000)" }
           },
           required: []
         }
@@ -222,6 +234,20 @@ export default async function handler(req, res) {
 You have access to tools that let you query and update the warehouse inventory in real time.
 
 The warehouse uses location codes like NDC3, NDB4, NDC5, etc. (N=Norte, D=rack D, C/B=floor, number=section).
+
+Model shortcuts (use sku_name with these):
+- "C300X" or "c300x" → Anker SOLIX C300X (sku_code: A1723111)
+- "F2600" → Anker SOLIX F2600 (sku_code: A1781111)
+- "F3800" or "F3800Plus" → Anker SOLIX F3800 Plus
+- "400W" or "400w" → Anker SOLIX 400W Portable Solar Panel
+- "200W" → Anker SOLIX 200W Portable Solar Panel
+- "BP2600" → Anker SOLIX BP2600 Expansion Battery
+- "BP3800" → Anker SOLIX BP3800 Expansion Battery
+- "ATS" → Anker SOLIX Home Power Panel
+- "GIA" → Anker SOLIX Generator Input Adapter
+- "EverFrost" → Anker SOLIX EverFrost 40L
+
+When the user mentions a model by short name, use sku_name with the short name — do NOT ask them to spell out the full name.
 
 Guidelines:
 - Always verify a serial exists before taking action on it
