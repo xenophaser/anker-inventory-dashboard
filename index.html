@@ -1,4 +1,3 @@
-
 <!--
   ============================================================
   Anker Warehouse — Inventory Management System
@@ -7,7 +6,7 @@
   Institution: Inter American University of Puerto Rico
                Metropolitan Campus — Computer Science
   Built with : Personal Supabase account & API keys
-  Version    : 2.4
+  Version    : 2.5
   Updated    : May 2026
 
   Description:
@@ -79,7 +78,7 @@ textarea{font-family:var(--mono);font-size:12px;resize:vertical;width:100%}
 .btn.sm{padding:5px 11px;font-size:12px}
 .btn.gh{border-color:var(--border);background:transparent;color:var(--text2)}
 .btn.gh:hover{background:var(--surface2);color:var(--text)}
-.sr{display:flex;gap:8px;margin-bottom:1rem}
+.sr{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
 .sr input{flex:1}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -95,6 +94,7 @@ tbody tr:last-child td{border-bottom:none}
 .badge.shipped{background:#1a1a2a;color:#7788cc}
 .loc-badge{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px;background:#1a2a3a;color:#7aabdd;border:1px solid #2a4a5a}
 .loc-badge.empty{color:var(--text3);border:1px dashed var(--border2);background:transparent}
+.filter-active{border-color:var(--accent)!important;color:var(--accent)!important}
 .sec{display:none}.sec.active{display:block}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .mbg.open{display:flex}
@@ -227,14 +227,19 @@ tbody tr:last-child td{border-bottom:none}
     <div id="recent"></div>
   </div>
   <div class="sec" id="sec-inventory">
+    <!-- v2.5: Filter bar with location search and date filters -->
     <div class="sr">
-      <input type="text" placeholder="Search serial, model&#8230;" oninput="renderInv(this.value)"/>
-      <select onchange="sf=this.value;renderInv()" style="width:140px">
+      <input type="text" id="f-search" placeholder="Search serial, model&#8230;" oninput="sq=this.value;renderInv()" style="flex:2;min-width:160px"/>
+      <input type="text" id="f-loc" placeholder="&#128205; Location (e.g. NDC3)" oninput="sloc=this.value.toUpperCase();renderInv()" style="flex:1;min-width:110px;font-family:var(--mono)"/>
+      <select id="f-status" onchange="sf=this.value;renderInv()" style="width:130px">
         <option value="">All statuses</option>
         <option value="in-stock">In stock</option>
         <option value="dispatched">Dispatched</option>
         <option value="rma">RMA</option>
       </select>
+      <input type="date" id="f-date-from" onchange="sdateFrom=this.value;renderInv()" title="Updated from date" style="width:140px"/>
+      <input type="date" id="f-date-to" onchange="sdateTo=this.value;renderInv()" title="Updated to date" style="width:140px"/>
+      <button class="btn sm gh" onclick="clearFilters()" title="Clear all filters">&#10005; Clear</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
   </div>
@@ -277,7 +282,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
   <div id="ai-messages"><div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div></div>
   <div id="ai-input-row">
-    <input id="ai-input" type="text" placeholder="e.g. Add C300X, SKU A17231111&#8230;" onkeydown="if(event.key==='Enter')sendAI()"/>
+    <input id="ai-input" type="text" placeholder="e.g. cuantas C300X en stock&#8230;" onkeydown="if(event.key==='Enter')sendAI()"/>
     <button class="btn pri sm" id="ai-send" onclick="sendAI()">Send</button>
   </div>
 </div>
@@ -290,7 +295,6 @@ tbody tr:last-child td{border-bottom:none}
 <div class="mbg" id="m-edit"><div class="modal"><h3>Edit model</h3><p style="font-size:11px;color:var(--text3);margin-bottom:1rem">Changes apply to all serials under this model.</p><div class="fld"><label>Model name</label><input id="edit-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU code</label><input id="edit-sku" placeholder="A1781111" style="font-family:var(--mono)"/></div><input type="hidden" id="edit-orig-name"/><div class="ma"><button class="btn" onclick="closeM('m-edit')">Cancel</button><button class="btn pri" onclick="doEdit()">Save changes</button></div></div></div>
 <div class="mbg" id="m-paste"><div class="modal"><h3>Paste multiple serials</h3><div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775"></textarea></div><div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div></div></div>
 <div class="mbg" id="m-incoming"><div class="modal"><h3>&#128229; Log incoming damaged unit</h3><div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div><div class="fld"><label>Condition</label><select id="inc-condition" style="width:100%"><option value="Damaged">Damaged</option><option value="Defective">Defective</option><option value="Wrong item">Wrong item</option><option value="Incomplete">Incomplete</option><option value="Other">Other</option></select></div><div class="fld"><label>Customer / Order ref</label><input id="inc-ref" placeholder="e.g. Order #12345 or customer name"/></div><div class="fld"><label>Notes (optional)</label><input id="inc-notes" placeholder="e.g. cracked screen, missing cables"/></div><div class="ma"><button class="btn" onclick="closeM('m-incoming')">Cancel</button><button class="btn pri" onclick="doLogIncoming()">Log unit</button></div></div></div>
-<!-- LOCATION MODAL -->
 <div class="mbg" id="m-location"><div class="modal" style="width:360px"><h3>&#128205; Update location</h3><div class="fld"><label>Serial</label><input id="loc-serial-display" readonly style="font-family:var(--mono);opacity:.6"/></div><div class="fld"><label>Location (e.g. NDC3, NDB4)</label><input id="loc-input" placeholder="NDC3" style="font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/><div class="hint">Leave blank to clear location.</div></div><div class="ma"><button class="btn" onclick="closeM('m-location')">Cancel</button><button class="btn pri" onclick="doUpdateLocation()">Save</button></div></div></div>
 <div id="print-area" style="display:none"></div>
 <div class="mbg" id="m-shipment"><div class="modal" style="width:520px"><h3>&#128230; Create outbound shipment</h3><div class="fld-row"><div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div><div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div></div><div class="fld"><label>Notes (optional)</label><input id="ship-notes" placeholder="e.g. Container #, tracking #"/></div><div class="fld"><label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label><div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px"><div class="empty">Loading waiting units&#8230;</div></div></div><div class="ma"><button class="btn" onclick="closeM('m-shipment')">Cancel</button><button class="btn pri" onclick="doCreateShipment()">Create shipment</button></div></div></div>
@@ -299,7 +303,8 @@ var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
-var inv = [], log = [], queue = [], sf = "", sq = "", drillSku = null;
+// v2.5: Added filter variables for location and date
+var inv = [], log = [], queue = [], sf = "", sq = "", sloc = "", sdateFrom = "", sdateTo = "", drillSku = null;
 var rmaIncoming = [], rmaShipments = [];
 var RESTOCK_REASONS = ["No cambio","Re coordinado","Cancelado","Back to stock"];
 
@@ -360,13 +365,12 @@ function sbPost(table,data){
 function sbPatch(table,match,data){
   return fetch(SB_URL+"/rest/v1/"+table+"?"+match,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
 }
-
 function setSyncStatus(s,label){
   document.getElementById("sync-dot").className=s;
   document.getElementById("sync-label").textContent=label;
 }
 
-// ── Load data — v2.4 includes location field ──────────────────
+// ── Load data ─────────────────────────────────────────────────
 function fetchAllInventory(offset,accumulated){
   offset=offset||0; accumulated=accumulated||[];
   return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=3000&offset="+offset,{headers:HEADERS})
@@ -407,23 +411,33 @@ function stats(){
   document.getElementById("s-damaged-card").style.borderColor=waiting.length>0?"#5a3a00":"var(--border)";
 }
 
-// ── renderInv — NOW WITH LOCATION COLUMN ─────────────────────
+// ── v2.5: Clear all filters ───────────────────────────────────
+function clearFilters(){
+  sq=""; sloc=""; sf=""; sdateFrom=""; sdateTo="";
+  document.getElementById("f-search").value="";
+  document.getElementById("f-loc").value="";
+  document.getElementById("f-status").value="";
+  document.getElementById("f-date-from").value="";
+  document.getElementById("f-date-to").value="";
+  renderInv();
+}
+
+// ── renderInv — WITH LOCATION + DATE FILTERS (v2.5) ──────────
 function renderInv(q){
-  sq=q||"";
+  if(q!==undefined) sq=q;
   var wrap=document.getElementById("inv-tbl");
   if(drillSku){
     var items=inv.filter(function(i){return i.sku===drillSku;});
     if(sf) items=items.filter(function(i){return i.status===sf;});
     if(sq) items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0||i.location.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+    if(sloc) items=items.filter(function(i){return i.location.toUpperCase().indexOf(sloc)>=0;});
+    if(sdateFrom) items=items.filter(function(i){return i.updatedAt>=sdateFrom;});
+    if(sdateTo) items=items.filter(function(i){return i.updatedAt<=sdateTo+"T23:59:59";});
     var skuCodeLabel=items.length>0&&items[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>":"";
     var rows=items.map(function(i){
       var lbl=i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      var locBadge=i.location
-        ?"<span class='loc-badge'>&#128205; "+esc(i.location)+"</span>"
-        :"<span class='loc-badge empty'>—</span>";
-      var locBtn=i.status==="in-stock"
-        ?"<button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})' title='Update location'>&#128205;</button>"
-        :"";
+      var locBadge=i.location?"<span class='loc-badge'>&#128205; "+esc(i.location)+"</span>":"<span class='loc-badge empty'>—</span>";
+      var locBtn=i.status==="in-stock"?"<button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})' title='Update location'>&#128205;</button>":"";
       return "<tr>"
         +"<td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td>"
         +"<td><span class='badge "+i.status+"'>"+lbl+"</span></td>"
@@ -437,7 +451,7 @@ function renderInv(q){
       +"<span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel
       +"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span>"
       +"</div>"
-      +"<table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:140px'>Location</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead>"
+      +"<table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:150px'>Location</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead>"
       +"<tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
@@ -457,6 +471,7 @@ function renderInv(q){
     if(sf==="rma") return groups[k].rma>0;
     return true;
   });
+  // Location and date filters apply at drill-down level
   if(!skus.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
   var rows=skus.map(function(k){
     var g=groups[k];
@@ -476,7 +491,7 @@ function renderInv(q){
 }
 
 // ── LOCATION UPDATE ───────────────────────────────────────────
-function openLocation(serial, currentLoc){
+function openLocation(serial,currentLoc){
   document.getElementById("loc-serial-display").value=serial;
   document.getElementById("loc-input").value=currentLoc||"";
   openM("m-location");
@@ -489,9 +504,8 @@ function doUpdateLocation(){
   sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{location:loc||null})
   .then(function(){
     closeM("m-location");
-    // Update local data
     inv=inv.map(function(i){ return i.serial===serial?Object.assign({},i,{location:loc}):i; });
-    renderInv(sq);
+    renderInv();
     setSyncStatus("ok",inv.length+" units");
     toast(loc?"Location set to "+loc:"Location cleared");
   }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
@@ -630,7 +644,7 @@ function go(t){
   document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});
   document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});
   document.getElementById("sec-"+t).classList.add("active");
-  if(t==="inventory") renderInv(sq);
+  if(t==="inventory") renderInv();
 }
 function setDrill(el){drillSku=el.getAttribute("data-sku");renderInv();}
 function guardRet(el){var serial=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=serial;openM("m-rma");});}
@@ -675,7 +689,6 @@ function doPaste(){
   closeM("m-paste");
   document.getElementById("paste-txt").value="";
 }
-// ── DISPATCH — clears location ────────────────────────────────
 function doDispatch(){
   var ref=document.getElementById("ref").value.trim();
   var td=queue.filter(function(q){return q.found;});
