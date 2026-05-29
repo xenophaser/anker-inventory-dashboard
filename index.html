@@ -7,7 +7,7 @@
   Institution: Inter American University of Puerto Rico
                Metropolitan Campus — Computer Science
   Built with : Personal Supabase account & API keys
-  Version    : 2.3
+  Version    : 2.4
   Updated    : May 2026
 
   Description:
@@ -93,6 +93,8 @@ tbody tr:last-child td{border-bottom:none}
 .badge.rma{background:var(--warn-dark);color:var(--warn)}
 .badge.waiting{background:var(--warn-dark);color:var(--warn)}
 .badge.shipped{background:#1a1a2a;color:#7788cc}
+.loc-badge{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px;background:#1a2a3a;color:#7aabdd;border:1px solid #2a4a5a}
+.loc-badge.empty{color:var(--text3);border:1px dashed var(--border2);background:transparent}
 .sec{display:none}.sec.active{display:block}
 .mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .mbg.open{display:flex}
@@ -205,7 +207,6 @@ tbody tr:last-child td{border-bottom:none}
     <button class="tab" onclick="go('rma')">RMA / Returns</button>
     <button class="tab" onclick="go('log')">Activity log</button>
   </div>
-
   <div class="sec active" id="sec-dispatch">
     <div class="card">
       <div class="card-title">Quick dispatch</div>
@@ -225,7 +226,6 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div id="recent"></div>
   </div>
-
   <div class="sec" id="sec-inventory">
     <div class="sr">
       <input type="text" placeholder="Search serial, model&#8230;" oninput="renderInv(this.value)"/>
@@ -238,7 +238,6 @@ tbody tr:last-child td{border-bottom:none}
     </div>
     <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
   </div>
-
   <div class="sec" id="sec-rma">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
       <div class="rma-subtabs">
@@ -267,190 +266,34 @@ tbody tr:last-child td{border-bottom:none}
       <div id="shipments-list"></div>
     </div>
   </div>
-
   <div class="sec" id="sec-log">
     <div class="card"><div id="log-wrap"></div></div>
   </div>
 </main>
-
 <div id="ai-panel">
   <div id="ai-panel-hdr">
     <span>&#10022; Warehouse AI</span>
     <button class="btn sm gh" onclick="toggleAI()" style="padding:2px 8px;font-size:11px">&#10005;</button>
   </div>
-  <div id="ai-messages">
-    <div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div>
-  </div>
+  <div id="ai-messages"><div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div></div>
   <div id="ai-input-row">
     <input id="ai-input" type="text" placeholder="e.g. Add C300X, SKU A17231111&#8230;" onkeydown="if(event.key==='Enter')sendAI()"/>
     <button class="btn pri sm" id="ai-send" onclick="sendAI()">Send</button>
   </div>
 </div>
-
-<div class="mbg" id="m-lock">
-  <div class="modal">
-    <h3>&#128272; Editor access</h3>
-    <p id="lock-subtitle">Enter the password to unlock editing</p>
-    <div class="fld"><input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/></div>
-    <div id="lock-err"></div>
-    <div id="lock-spinner">Verifying&#8230;</div>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-lock')">Cancel</button>
-      <button class="btn pri" onclick="submitLock()">Unlock</button>
-    </div>
-  </div>
-</div>
-
-<div class="mbg" id="m-import">
-  <div class="modal">
-    <h3>Import inventory list</h3>
-    <div class="fld"><label>Paste list &#8212; Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838&#10;Anker SOLIX 400W&#9;A24371A1&#9;NVCL0120240725000481"></textarea></div>
-    <div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div>
-    <p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p>
-    <div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div>
-  </div>
-</div>
-
-<div class="mbg" id="m-add">
-  <div class="modal">
-    <h3>Add item</h3>
-    <div class="fld-row">
-      <div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div>
-      <div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A17B1111"/></div>
-    </div>
-    <div class="fld">
-      <label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label>
-      <textarea id="add-sn-bulk" rows="8" placeholder="Optional &#8212; paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;&#8230;&#10;&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea>
-      <div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div>
-    </div>
-    <div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-add')">Cancel</button>
-      <button class="btn pri" onclick="doAdd()">Add</button>
-    </div>
-  </div>
-</div>
-
-<div class="mbg" id="m-rma">
-  <div class="modal">
-    <h3>Log return / RMA</h3>
-    <div class="fld"><label>Serial number</label><input id="rma-sn" placeholder="Scan or type serial" style="font-family:var(--mono)"/></div>
-    <div class="fld">
-      <label>Reason</label>
-      <select id="rma-reason" style="width:100%" onchange="updateReasonHint()">
-        <option value="No cambio">No cambio</option>
-        <option value="Re coordinado">Re coordinado</option>
-        <option value="Cancelado">Cancelado</option>
-        <option value="Back to stock">Back to stock</option>
-        <option value="Damaged">Damaged</option>
-        <option value="Other">Other</option>
-      </select>
-      <div id="reason-hint" class="reason-hint restock">&#10003; Unit will be returned to In Stock</div>
-    </div>
-    <div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div>
-    <div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div>
-  </div>
-</div>
-
-<div class="mbg" id="m-rma-bulk">
-  <div class="modal" style="width:520px">
-    <h3>&#8697; Bulk return</h3>
-    <div class="fld">
-      <label>Reason <span id="bulk-restock-badge" style="display:none;margin-left:6px" class="sn-counter">&#10003; returns to stock</span></label>
-      <select id="bulk-reason" style="width:100%" onchange="updateBulkReasonHint(); renderBulkPreview()">
-        <option value="No cambio">No cambio</option>
-        <option value="Re coordinado">Re coordinado</option>
-        <option value="Cancelado">Cancelado</option>
-        <option value="Back to stock">Back to stock</option>
-        <option value="Damaged">Damaged</option>
-        <option value="Other">Other</option>
-      </select>
-      <div id="bulk-reason-hint" class="reason-hint restock">&#10003; Units will be returned to In Stock</div>
-    </div>
-    <div class="fld">
-      <label>Serial numbers <span id="bulk-sn-count" class="sn-counter" style="display:none">0</span></label>
-      <textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line:&#10;AZVABY0F25600065&#10;AZVABY0F15400009&#10;MC4-10M-001&#10;&#8230;" oninput="updateBulkCount(); renderBulkPreview()"></textarea>
-    </div>
-    <div class="fld"><label>Notes (optional, applies to all)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div>
-    <div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;font-weight:500">Preview</div>
-      <div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div>
-    </div>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-rma-bulk')">Cancel</button>
-      <button class="btn pri" id="bulk-submit-btn" onclick="doBulkRMA()" disabled>Log returns</button>
-    </div>
-  </div>
-</div>
-
-<div class="mbg" id="m-edit">
-  <div class="modal">
-    <h3>Edit model</h3>
-    <p style="font-size:11px;color:var(--text3);margin-bottom:1rem">Changes apply to all serials under this model.</p>
-    <div class="fld"><label>Model name</label><input id="edit-name" placeholder="Anker SOLIX F2600"/></div>
-    <div class="fld"><label>SKU code</label><input id="edit-sku" placeholder="A1781111" style="font-family:var(--mono)"/></div>
-    <input type="hidden" id="edit-orig-name"/>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-edit')">Cancel</button>
-      <button class="btn pri" onclick="doEdit()">Save changes</button>
-    </div>
-  </div>
-</div>
-
-<div class="mbg" id="m-paste">
-  <div class="modal">
-    <h3>Paste multiple serials</h3>
-    <div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775&#10;LSVN0120230708000471"></textarea></div>
-    <div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div>
-  </div>
-</div>
-
-<div class="mbg" id="m-incoming">
-  <div class="modal">
-    <h3>&#128229; Log incoming damaged unit</h3>
-    <div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div>
-    <div class="fld">
-      <label>Condition</label>
-      <select id="inc-condition" style="width:100%">
-        <option value="Damaged">Damaged</option>
-        <option value="Defective">Defective</option>
-        <option value="Wrong item">Wrong item</option>
-        <option value="Incomplete">Incomplete</option>
-        <option value="Other">Other</option>
-      </select>
-    </div>
-    <div class="fld"><label>Customer / Order ref</label><input id="inc-ref" placeholder="e.g. Order #12345 or customer name"/></div>
-    <div class="fld"><label>Notes (optional)</label><input id="inc-notes" placeholder="e.g. cracked screen, missing cables"/></div>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-incoming')">Cancel</button>
-      <button class="btn pri" onclick="doLogIncoming()">Log unit</button>
-    </div>
-  </div>
-</div>
-
+<!-- MODALS -->
+<div class="mbg" id="m-lock"><div class="modal"><h3>&#128272; Editor access</h3><p id="lock-subtitle">Enter the password to unlock editing</p><div class="fld"><input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/></div><div id="lock-err"></div><div id="lock-spinner">Verifying&#8230;</div><div class="ma"><button class="btn" onclick="closeM('m-lock')">Cancel</button><button class="btn pri" onclick="submitLock()">Unlock</button></div></div></div>
+<div class="mbg" id="m-import"><div class="modal"><h3>Import inventory list</h3><div class="fld"><label>Paste list &#8212; Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838"></textarea></div><div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div><p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p><div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div></div></div>
+<div class="mbg" id="m-add"><div class="modal"><h3>Add item</h3><div class="fld-row"><div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A17B1111"/></div></div><div class="fld"><label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="add-sn-bulk" rows="8" placeholder="Optional &#8212; paste one serial per line&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea><div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div></div><div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div><div class="ma"><button class="btn" onclick="closeM('m-add')">Cancel</button><button class="btn pri" onclick="doAdd()">Add</button></div></div></div>
+<div class="mbg" id="m-rma"><div class="modal"><h3>Log return / RMA</h3><div class="fld"><label>Serial number</label><input id="rma-sn" placeholder="Scan or type serial" style="font-family:var(--mono)"/></div><div class="fld"><label>Reason</label><select id="rma-reason" style="width:100%" onchange="updateReasonHint()"><option value="No cambio">No cambio</option><option value="Re coordinado">Re coordinado</option><option value="Cancelado">Cancelado</option><option value="Back to stock">Back to stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select><div id="reason-hint" class="reason-hint restock">&#10003; Unit will be returned to In Stock</div></div><div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div><div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div></div></div>
+<div class="mbg" id="m-rma-bulk"><div class="modal" style="width:520px"><h3>&#8697; Bulk return</h3><div class="fld"><label>Reason <span id="bulk-restock-badge" style="display:none;margin-left:6px" class="sn-counter">&#10003; returns to stock</span></label><select id="bulk-reason" style="width:100%" onchange="updateBulkReasonHint(); renderBulkPreview()"><option value="No cambio">No cambio</option><option value="Re coordinado">Re coordinado</option><option value="Cancelado">Cancelado</option><option value="Back to stock">Back to stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select><div id="bulk-reason-hint" class="reason-hint restock">&#10003; Units will be returned to In Stock</div></div><div class="fld"><label>Serial numbers <span id="bulk-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line" oninput="updateBulkCount(); renderBulkPreview()"></textarea></div><div class="fld"><label>Notes (optional, applies to all)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div><div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;font-weight:500">Preview</div><div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div></div><div class="ma"><button class="btn" onclick="closeM('m-rma-bulk')">Cancel</button><button class="btn pri" id="bulk-submit-btn" onclick="doBulkRMA()" disabled>Log returns</button></div></div></div>
+<div class="mbg" id="m-edit"><div class="modal"><h3>Edit model</h3><p style="font-size:11px;color:var(--text3);margin-bottom:1rem">Changes apply to all serials under this model.</p><div class="fld"><label>Model name</label><input id="edit-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU code</label><input id="edit-sku" placeholder="A1781111" style="font-family:var(--mono)"/></div><input type="hidden" id="edit-orig-name"/><div class="ma"><button class="btn" onclick="closeM('m-edit')">Cancel</button><button class="btn pri" onclick="doEdit()">Save changes</button></div></div></div>
+<div class="mbg" id="m-paste"><div class="modal"><h3>Paste multiple serials</h3><div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775"></textarea></div><div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div></div></div>
+<div class="mbg" id="m-incoming"><div class="modal"><h3>&#128229; Log incoming damaged unit</h3><div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div><div class="fld"><label>Condition</label><select id="inc-condition" style="width:100%"><option value="Damaged">Damaged</option><option value="Defective">Defective</option><option value="Wrong item">Wrong item</option><option value="Incomplete">Incomplete</option><option value="Other">Other</option></select></div><div class="fld"><label>Customer / Order ref</label><input id="inc-ref" placeholder="e.g. Order #12345 or customer name"/></div><div class="fld"><label>Notes (optional)</label><input id="inc-notes" placeholder="e.g. cracked screen, missing cables"/></div><div class="ma"><button class="btn" onclick="closeM('m-incoming')">Cancel</button><button class="btn pri" onclick="doLogIncoming()">Log unit</button></div></div></div>
+<!-- LOCATION MODAL -->
+<div class="mbg" id="m-location"><div class="modal" style="width:360px"><h3>&#128205; Update location</h3><div class="fld"><label>Serial</label><input id="loc-serial-display" readonly style="font-family:var(--mono);opacity:.6"/></div><div class="fld"><label>Location (e.g. NDC3, NDB4)</label><input id="loc-input" placeholder="NDC3" style="font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/><div class="hint">Leave blank to clear location.</div></div><div class="ma"><button class="btn" onclick="closeM('m-location')">Cancel</button><button class="btn pri" onclick="doUpdateLocation()">Save</button></div></div></div>
 <div id="print-area" style="display:none"></div>
-
-<div class="mbg" id="m-shipment">
-  <div class="modal" style="width:520px">
-    <h3>&#128230; Create outbound shipment</h3>
-    <div class="fld-row">
-      <div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div>
-      <div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div>
-    </div>
-    <div class="fld"><label>Notes (optional)</label><input id="ship-notes" placeholder="e.g. Container #, tracking #"/></div>
-    <div class="fld">
-      <label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label>
-      <div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px">
-        <div class="empty">Loading waiting units&#8230;</div>
-      </div>
-    </div>
-    <div class="ma">
-      <button class="btn" onclick="closeM('m-shipment')">Cancel</button>
-      <button class="btn pri" onclick="doCreateShipment()">Create shipment</button>
-    </div>
-  </div>
-</div>
-
+<div class="mbg" id="m-shipment"><div class="modal" style="width:520px"><h3>&#128230; Create outbound shipment</h3><div class="fld-row"><div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div><div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div></div><div class="fld"><label>Notes (optional)</label><input id="ship-notes" placeholder="e.g. Container #, tracking #"/></div><div class="fld"><label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label><div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px"><div class="empty">Loading waiting units&#8230;</div></div></div><div class="ma"><button class="btn" onclick="closeM('m-shipment')">Cancel</button><button class="btn pri" onclick="doCreateShipment()">Create shipment</button></div></div></div>
 <script>
 var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
@@ -518,15 +361,12 @@ function sbPatch(table,match,data){
   return fetch(SB_URL+"/rest/v1/"+table+"?"+match,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
 }
 
-// ── Sync indicator ────────────────────────────────────────────
 function setSyncStatus(s,label){
   document.getElementById("sync-dot").className=s;
   document.getElementById("sync-label").textContent=label;
 }
 
-// ── Load data ─────────────────────────────────────────────────
-// FIX v2.3: Increased limit from 1000 to 3000 to fetch all inventory in one call
-// and avoid pagination bug that caused incorrect counts per SKU.
+// ── Load data — v2.4 includes location field ──────────────────
 function fetchAllInventory(offset,accumulated){
   offset=offset||0; accumulated=accumulated||[];
   return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=3000&offset="+offset,{headers:HEADERS})
@@ -544,7 +384,7 @@ function loadData(){
     sbGet("rma_incoming","order=received_at.desc&limit=500"),
     sbGet("rma_shipments","order=shipped_at.desc&limit=100")
   ]).then(function(results){
-    inv=results[0].map(function(r){return{serial:r.serial,sku:r.sku,skuCode:r.sku_code||"",status:r.status,ref:r.ref||"",notes:r.notes||"",updatedAt:r.updated_at};});
+    inv=results[0].map(function(r){return{serial:r.serial,sku:r.sku,skuCode:r.sku_code||"",status:r.status,ref:r.ref||"",notes:r.notes||"",location:r.location||"",updatedAt:r.updated_at};});
     log=results[1].map(function(r){return{ts:r.ts,msg:r.msg,type:r.type||"",serial:r.serial||"",reason:r.reason||"",notes:r.notes||""};});
     rmaIncoming=results[2];
     rmaShipments=results[3];
@@ -553,7 +393,6 @@ function loadData(){
   }).catch(function(e){ setSyncStatus("err","offline"); toast("Connection error — check Supabase"); console.error(e); });
 }
 
-// ── Render ────────────────────────────────────────────────────
 function render(){ stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); renderIncoming(); renderShipments(); }
 
 function stats(){
@@ -568,19 +407,38 @@ function stats(){
   document.getElementById("s-damaged-card").style.borderColor=waiting.length>0?"#5a3a00":"var(--border)";
 }
 
+// ── renderInv — NOW WITH LOCATION COLUMN ─────────────────────
 function renderInv(q){
   sq=q||"";
   var wrap=document.getElementById("inv-tbl");
   if(drillSku){
     var items=inv.filter(function(i){return i.sku===drillSku;});
     if(sf) items=items.filter(function(i){return i.status===sf;});
-    if(sq) items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+    if(sq) items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0||i.location.toLowerCase().indexOf(sq.toLowerCase())>=0;});
     var skuCodeLabel=items.length>0&&items[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>":"";
     var rows=items.map(function(i){
       var lbl=i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td></tr>";
+      var locBadge=i.location
+        ?"<span class='loc-badge'>&#128205; "+esc(i.location)+"</span>"
+        :"<span class='loc-badge empty'>—</span>";
+      var locBtn=i.status==="in-stock"
+        ?"<button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})' title='Update location'>&#128205;</button>"
+        :"";
+      return "<tr>"
+        +"<td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td>"
+        +"<td><span class='badge "+i.status+"'>"+lbl+"</span></td>"
+        +"<td>"+locBadge+" "+locBtn+"</td>"
+        +"<td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td>"
+        +"<td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td>"
+        +"</tr>";
     });
-    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'>"
+      +"<button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button>"
+      +"<span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel
+      +"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span>"
+      +"</div>"
+      +"<table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:140px'>Location</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead>"
+      +"<tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
   var groups={};
@@ -617,6 +475,28 @@ function renderInv(q){
   wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
 
+// ── LOCATION UPDATE ───────────────────────────────────────────
+function openLocation(serial, currentLoc){
+  document.getElementById("loc-serial-display").value=serial;
+  document.getElementById("loc-input").value=currentLoc||"";
+  openM("m-location");
+  setTimeout(function(){ document.getElementById("loc-input").focus(); },100);
+}
+function doUpdateLocation(){
+  var serial=document.getElementById("loc-serial-display").value;
+  var loc=document.getElementById("loc-input").value.trim().toUpperCase();
+  setSyncStatus("syncing","saving...");
+  sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{location:loc||null})
+  .then(function(){
+    closeM("m-location");
+    // Update local data
+    inv=inv.map(function(i){ return i.serial===serial?Object.assign({},i,{location:loc}):i; });
+    renderInv(sq);
+    setSyncStatus("ok",inv.length+" units");
+    toast(loc?"Location set to "+loc:"Location cleared");
+  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+}
+
 function renderRMA(){
   var wrap=document.getElementById("rma-tbl");
   var items=log.filter(function(l){return l.type==="rma";});
@@ -624,20 +504,17 @@ function renderRMA(){
   var rows=items.map(function(i){return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>";});
   wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:130px'>Reason</th><th>Notes</th><th style='width:110px'>Date</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
-
 function renderLog(){
   var wrap=document.getElementById("log-wrap");
   if(!log.length){wrap.innerHTML="<div class='empty'>No activity yet</div>";return;}
   wrap.innerHTML=log.slice(0,150).map(function(l){return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>";}).join("");
 }
-
 function renderRecent(){
   var wrap=document.getElementById("recent");
   var recent=log.filter(function(l){return l.type==="dispatch";}).slice(0,5);
   if(!recent.length){wrap.innerHTML="";return;}
   wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>";}).join("")+"</div>";
 }
-
 function renderIncoming(){
   var wrap=document.getElementById("incoming-tbl");
   if(!rmaIncoming.length){wrap.innerHTML="<div class='empty'>No incoming units logged yet</div>";return;}
@@ -647,7 +524,6 @@ function renderIncoming(){
   });
   wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:110px'>Condition</th><th style='width:160px'>Order / Customer</th><th>Notes</th><th style='width:80px'>Status</th><th style='width:120px'>Received</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
 }
-
 function doLogIncoming(){
   var serial=document.getElementById("inc-serial").value.trim().toUpperCase();
   var condition=document.getElementById("inc-condition").value;
@@ -665,47 +541,31 @@ function doLogIncoming(){
     loadData();
   }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
-
 function renderShipments(){
   var wrap=document.getElementById("shipments-list");
   if(!rmaShipments.length){wrap.innerHTML="<div class='card'><div class='empty'>No shipments created yet</div></div>";return;}
   wrap.innerHTML=rmaShipments.map(function(s){
-    var serials=[];
-    try{ serials=JSON.parse(s.serials||"[]"); }catch(e){}
+    var serials=[];try{ serials=JSON.parse(s.serials||"[]"); }catch(e){}
     var dest=s.destination?"📦 "+esc(s.destination):"📦 Outbound shipment";
     var meta=fd(s.shipped_at)+" &nbsp;·&nbsp; "+s.serial_count+" unit(s)"+(s.notes?" &nbsp;·&nbsp; "+esc(s.notes):"");
     var sd=JSON.stringify(s).replace(/"/g,"&quot;");
-    return "<div class='shipment-card'>"
-      +"<div class='shipment-info'><div class='shipment-title'>"+dest+"</div><div class='shipment-meta'>"+meta+"</div></div>"
-      +"<div class='shipment-actions'>"
-        +"<button class='btn sm gh' onclick='exportShipmentCSV("+sd+")'>Export CSV</button>"
-        +"<button class='btn sm gh' onclick='printShipment("+sd+", false)'>🖨 Shipping list</button>"
-        +"<button class='btn sm gh' onclick='printShipment("+sd+", true)'>🖨 Full report</button>"
-      +"</div></div>";
+    return "<div class='shipment-card'><div class='shipment-info'><div class='shipment-title'>"+dest+"</div><div class='shipment-meta'>"+meta+"</div></div><div class='shipment-actions'><button class='btn sm gh' onclick='exportShipmentCSV("+sd+")'>Export CSV</button><button class='btn sm gh' onclick='printShipment("+sd+", false)'>🖨 Shipping list</button><button class='btn sm gh' onclick='printShipment("+sd+", true)'>🖨 Full report</button></div></div>";
   }).join("");
 }
-
 function loadShipmentPicker(){
   var picker=document.getElementById("ship-picker");
   var waiting=rmaIncoming.filter(function(u){return u.status==="waiting";});
   if(!waiting.length){picker.innerHTML="<div class='empty'>No units waiting — log incoming units first</div>";return;}
   picker.innerHTML=waiting.map(function(u){
-    return "<div class='cb-row'>"
-      +"<input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'>"
-      +"<label for='chk-"+esc(u.id)+"'><strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong>"
-      +" <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"
-      +(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")
-      +"</label><span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span></div>";
+    return "<div class='cb-row'><input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'><label for='chk-"+esc(u.id)+"'><strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong> <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"+(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")+"</label><span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span></div>";
   }).join("");
   updateSelCount();
   document.getElementById("ship-date").value=new Date().toISOString().split("T")[0];
 }
-
 function updateSelCount(){
   var checked=document.querySelectorAll("#ship-picker input[type=checkbox]:checked").length;
   document.getElementById("ship-sel-count").textContent=checked?checked+" selected":"";
 }
-
 async function doCreateShipment(){
   var date=document.getElementById("ship-date").value;
   var dest=document.getElementById("ship-dest").value.trim();
@@ -726,10 +586,8 @@ async function doCreateShipment(){
     loadData();
   }catch(e){ setSyncStatus("err","save failed"); toast("Error saving — try again"); }
 }
-
 function exportShipmentCSV(shipment){
-  var serials=[];
-  try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
+  var serials=[];try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
   var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];
   serials.forEach(function(sn){
     var unit=rmaIncoming.find(function(u){return u.serial===sn;});
@@ -739,57 +597,34 @@ function exportShipmentCSV(shipment){
   var dest=shipment.destination||"shipment";
   var date=shipment.shipped_at?new Date(shipment.shipped_at).toISOString().slice(0,10):new Date().toISOString().slice(0,10);
   var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-  var a=document.createElement("a");
-  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
-  a.download="shipment_"+dest.replace(/\s+/g,"_")+"_"+date+".csv";
-  a.click();
+  var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="shipment_"+dest.replace(/\s+/g,"_")+"_"+date+".csv";a.click();
   toast("CSV exported ✓");
 }
-
 function printShipment(shipment,fullReport){
-  var serials=[];
-  try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
+  var serials=[];try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
   var dest=shipment.destination||"Outbound Shipment";
   var date=shipment.shipped_at?new Date(shipment.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";
   var notes=shipment.notes||"";
   var tableHTML="";
   if(fullReport){
-    var rows=serials.map(function(sn){
-      var unit=rmaIncoming.find(function(u){return u.serial===sn;});
-      if(unit) return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";
-      return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";
-    }).join("");
+    var rows=serials.map(function(sn){var unit=rmaIncoming.find(function(u){return u.serial===sn;});if(unit) return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";}).join("");
     tableHTML="<table><thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead><tbody>"+rows+"</tbody></table>";
   } else {
     var rows=serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");
     tableHTML="<table><thead><tr><th>#</th><th>Serial Number</th></tr></thead><tbody>"+rows+"</tbody></table>";
   }
   var title=fullReport?"Shipment Report":"Shipping List";
-  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}h2{font-size:18px;margin-bottom:4px}.meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}.footer{margin-top:2rem;font-size:11px;color:#aaa}</style></head><body>"
-    +"<h2>Windmar &middot; Anker Warehouse &mdash; "+title+"</h2>"
-    +"<div class='meta'><strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"+(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")+"<strong>Total units:</strong> "+serials.length+"</div>"
-    +tableHTML
-    +"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div>"
-    +"<script>window.onload=function(){window.print();};<\/script></body></html>";
-  var w=window.open("","_blank","width=900,height=700");
-  w.document.write(html);
-  w.document.close();
+  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}h2{font-size:18px;margin-bottom:4px}.meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}.footer{margin-top:2rem;font-size:11px;color:#aaa}</style></head><body><h2>Windmar &middot; Anker Warehouse &mdash; "+title+"</h2><div class='meta'><strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"+(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")+"<strong>Total units:</strong> "+serials.length+"</div>"+tableHTML+"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div><script>window.onload=function(){window.print();};<\/script></body></html>";
+  var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();
 }
-
 function goRMASub(t){
   var subs=["returns","incoming","shipments"];
   document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",subs[i]===t);});
   document.querySelectorAll(".rma-subsec").forEach(function(s){s.classList.remove("active");});
   document.getElementById("rmasub-"+t).classList.add("active");
 }
-
-function fd(ts){
-  if(!ts) return "";
-  var d=new Date(ts);
-  return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
-}
+function fd(ts){if(!ts) return "";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-
 function go(t){
   var tabs=["dispatch","inventory","rma","log"];
   document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});
@@ -797,16 +632,9 @@ function go(t){
   document.getElementById("sec-"+t).classList.add("active");
   if(t==="inventory") renderInv(sq);
 }
-
 function setDrill(el){drillSku=el.getAttribute("data-sku");renderInv();}
 function guardRet(el){var serial=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=serial;openM("m-rma");});}
-
-function openEdit(sku,skuCode){
-  document.getElementById("edit-orig-name").value=sku;
-  document.getElementById("edit-name").value=sku;
-  document.getElementById("edit-sku").value=skuCode;
-  openM("m-edit");
-}
+function openEdit(sku,skuCode){document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
 function doEdit(){
   var origName=document.getElementById("edit-orig-name").value;
   var newName=document.getElementById("edit-name").value.trim();
@@ -821,13 +649,7 @@ function doEdit(){
   ]).then(function(){closeM("m-edit");toast("Model updated \u2713");loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
-
-function addS(){
-  var inp=document.getElementById("si");
-  var raw=inp.value.trim().toUpperCase();
-  if(!raw) return;
-  inp.value=""; procS(raw); inp.focus();
-}
+function addS(){var inp=document.getElementById("si");var raw=inp.value.trim().toUpperCase();if(!raw) return;inp.value=""; procS(raw); inp.focus();}
 function procS(raw){
   if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}
   var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});
@@ -841,36 +663,34 @@ function renderQ(){
   btn.disabled=!queue.some(function(q){return q.found;});
   wrap.innerHTML=queue.map(function(q,idx){
     var st=q.found&&q.item.status!=="in-stock"?"<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>":"";
-    return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
+    var loc=q.found&&q.item.location?"<span style='margin-left:8px;font-size:11px;color:#7aabdd'>&#128205;"+esc(q.item.location)+"</span>":"";
+    return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+loc+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
   }).join("");
 }
 function rmQ(i){queue.splice(i,1);renderQ();}
 function clrQ(){queue=[];renderQ();}
-
 function doPaste(){
   var lines=document.getElementById("paste-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
   lines.forEach(procS);
   closeM("m-paste");
   document.getElementById("paste-txt").value="";
 }
-
+// ── DISPATCH — clears location ────────────────────────────────
 function doDispatch(){
   var ref=document.getElementById("ref").value.trim();
   var td=queue.filter(function(q){return q.found;});
   if(!td.length) return;
   setSyncStatus("syncing","saving...");
   var now=new Date().toISOString();
-  var updates=td.map(function(q){return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",updated_at:now});});
+  var updates=td.map(function(q){return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",location:null,updated_at:now});});
   var serials=td.map(function(q){return q.serial;}).join(", ");
   var msg="Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
   updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
   var nf=queue.filter(function(q){return !q.found;});
   if(nf.length) updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
-  Promise.all(updates).then(function(){
-    queue=[];document.getElementById("ref").value="";toast(td.length+" unit(s) dispatched");loadData();
-  }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
+  Promise.all(updates).then(function(){queue=[];document.getElementById("ref").value="";toast(td.length+" unit(s) dispatched");loadData();})
+  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
-
 function updateReasonHint(){
   var reason=document.getElementById("rma-reason").value;
   var hint=document.getElementById("reason-hint");
@@ -878,7 +698,6 @@ function updateReasonHint(){
   hint.className="reason-hint "+(isRestock?"restock":"rma");
   hint.textContent=isRestock?"\u2713 Unit will be returned to In Stock":"\u26a0 Unit will remain flagged as RMA";
 }
-
 function doRMA(){
   var serial=document.getElementById("rma-sn").value.trim().toUpperCase();
   var reason=document.getElementById("rma-reason").value;
@@ -891,25 +710,16 @@ function doRMA(){
   Promise.all([
     sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),
     sbPost("activity_log",{msg:logMsg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
-  ]).then(function(){
-    closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";
-    toast(newStatus==="in-stock"?"\u2713 Unit returned to stock":"RMA logged");loadData();
-  }).catch(function(){setSyncStatus("err","save failed");});
+  ]).then(function(){closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";toast(newStatus==="in-stock"?"\u2713 Unit returned to stock":"RMA logged");loadData();})
+  .catch(function(){setSyncStatus("err","save failed");});
 }
-
 function openBulkRMA(){
-  document.getElementById("bulk-sn-txt").value="";
-  document.getElementById("bulk-notes").value="";
-  document.getElementById("bulk-sn-count").style.display="none";
-  document.getElementById("bulk-preview-wrap").style.display="none";
-  document.getElementById("bulk-preview").innerHTML="";
-  document.getElementById("bulk-submit-btn").disabled=true;
-  document.getElementById("bulk-reason").value="No cambio";
-  updateBulkReasonHint();
-  openM("m-rma-bulk");
-  setTimeout(function(){ document.getElementById("bulk-sn-txt").focus(); },100);
+  document.getElementById("bulk-sn-txt").value="";document.getElementById("bulk-notes").value="";
+  document.getElementById("bulk-sn-count").style.display="none";document.getElementById("bulk-preview-wrap").style.display="none";
+  document.getElementById("bulk-preview").innerHTML="";document.getElementById("bulk-submit-btn").disabled=true;
+  document.getElementById("bulk-reason").value="No cambio";updateBulkReasonHint();
+  openM("m-rma-bulk");setTimeout(function(){ document.getElementById("bulk-sn-txt").focus(); },100);
 }
-
 function updateBulkReasonHint(){
   var reason=document.getElementById("bulk-reason").value;
   var hint=document.getElementById("bulk-reason-hint");
@@ -917,129 +727,85 @@ function updateBulkReasonHint(){
   hint.className="reason-hint "+(isRestock?"restock":"rma");
   hint.textContent=isRestock?"\u2713 Units will be returned to In Stock":"\u26a0 Units will remain flagged as RMA";
 }
-
 function updateBulkCount(){
   var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var badge=document.getElementById("bulk-sn-count");
   if(lines.length>0){ badge.textContent=lines.length+(lines.length===1?" serial":" serials"); badge.style.display="inline-block"; }
   else { badge.style.display="none"; }
 }
-
 function renderBulkPreview(){
   var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  var wrap=document.getElementById("bulk-preview-wrap");
-  var preview=document.getElementById("bulk-preview");
-  var btn=document.getElementById("bulk-submit-btn");
+  var wrap=document.getElementById("bulk-preview-wrap");var preview=document.getElementById("bulk-preview");var btn=document.getElementById("bulk-submit-btn");
   if(!lines.length){ wrap.style.display="none"; btn.disabled=true; return; }
   wrap.style.display="block";
   var found=0, notFound=0;
   var rows=lines.map(function(sn){
     var item=inv.find(function(i){return i.serial.toUpperCase()===sn;});
-    if(item){ found++;
-      return "<div class='br-row found'><span class='br-icon'>&#10003;</span><span>"+esc(sn)+"</span><span class='br-model'>"+esc(item.sku)+"</span><span class='br-status'>"+esc(item.status)+"</span></div>";
-    } else { notFound++;
-      return "<div class='br-row nf'><span class='br-icon'>&#10007;</span><span>"+esc(sn)+"</span><span class='br-model' style='color:var(--danger)'>not found</span></div>";
-    }
+    if(item){ found++;return "<div class='br-row found'><span class='br-icon'>&#10003;</span><span>"+esc(sn)+"</span><span class='br-model'>"+esc(item.sku)+"</span><span class='br-status'>"+esc(item.status)+"</span></div>";}
+    else { notFound++;return "<div class='br-row nf'><span class='br-icon'>&#10007;</span><span>"+esc(sn)+"</span><span class='br-model' style='color:var(--danger)'>not found</span></div>";}
   }).join("");
   preview.innerHTML=rows+"<div class='br-summary'><span class='ok'>&#10003; "+found+" found</span><span class='bad'>&#10007; "+notFound+" not found</span></div>";
-  btn.disabled=found===0;
-  btn.textContent=found>0?"Log "+found+" return"+(found===1?"":"s"):"Log returns";
+  btn.disabled=found===0;btn.textContent=found>0?"Log "+found+" return"+(found===1?"":"s"):"Log returns";
 }
-
 async function doBulkRMA(){
   var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  var reason=document.getElementById("bulk-reason").value;
-  var notes=document.getElementById("bulk-notes").value.trim();
+  var reason=document.getElementById("bulk-reason").value;var notes=document.getElementById("bulk-notes").value.trim();
   var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
   var toProcess=lines.filter(function(sn){return inv.find(function(i){return i.serial.toUpperCase()===sn;});});
   if(!toProcess.length){toast("No valid serials to process");return;}
-  setSyncStatus("syncing","saving "+toProcess.length+"...");
-  document.getElementById("bulk-submit-btn").disabled=true;
+  setSyncStatus("syncing","saving "+toProcess.length+"...");document.getElementById("bulk-submit-btn").disabled=true;
   var now=new Date().toISOString();
   try{
     var updates=toProcess.map(function(sn){return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});});
-    var logEntries=toProcess.map(function(sn){
-      var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":"");
-      return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});
-    });
+    var logEntries=toProcess.map(function(sn){var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":"");return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});});
     var summary=(newStatus==="in-stock"?"Bulk return to stock":"Bulk RMA")+": "+toProcess.length+" unit(s) \u2014 "+reason+(notes?" ("+notes+")":"");
     logEntries.push(sbPost("activity_log",{msg:summary,type:"rma",serial:"",reason:reason,notes:notes,ts:now}));
     await Promise.all([...updates,...logEntries]);
-    closeM("m-rma-bulk");
-    toast("\u2713 "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));
-    loadData();
-  }catch(e){
-    setSyncStatus("err","save failed");
-    toast("Error saving — try again");
-    document.getElementById("bulk-submit-btn").disabled=false;
-  }
+    closeM("m-rma-bulk");toast("\u2713 "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));loadData();
+  }catch(e){setSyncStatus("err","save failed");toast("Error saving — try again");document.getElementById("bulk-submit-btn").disabled=false;}
 }
-
 function doImport(){
-  var text=document.getElementById("import-txt").value;
-  var defName=document.getElementById("import-sku").value.trim()||"Unknown";
+  var text=document.getElementById("import-txt").value;var defName=document.getElementById("import-sku").value.trim()||"Unknown";
   if(!text.trim()){toast("Nothing to import");return;}
   var lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var items=[],skipped=0;
-  var existingSerials={};
-  inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
+  var items=[],skipped=0;var existingSerials={};inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
   lines.forEach(function(line){
-    var parts;
-    if(line.indexOf("\t")>=0){parts=line.split("\t");}
-    else{var sm=line.match(/^(.+?)\s{2,}(.+)$/);if(sm){parts=[sm[1],sm[2]];}else{parts=line.split(/[,;]+/);}}
+    var parts;if(line.indexOf("\t")>=0){parts=line.split("\t");}else{var sm=line.match(/^(.+?)\s{2,}(.+)$/);if(sm){parts=[sm[1],sm[2]];}else{parts=line.split(/[,;]+/);}}
     parts=parts.map(function(p){return p.trim();}).filter(Boolean);
     var name=defName,skuCode="",serial="";
-    if(parts.length>=3){name=parts[0];skuCode=parts[1];serial=parts[2].toUpperCase();}
-    else if(parts.length===2){name=parts[0];serial=parts[1].toUpperCase();}
-    else if(parts.length===1){serial=parts[0].toUpperCase();}
+    if(parts.length>=3){name=parts[0];skuCode=parts[1];serial=parts[2].toUpperCase();}else if(parts.length===2){name=parts[0];serial=parts[1].toUpperCase();}else if(parts.length===1){serial=parts[0].toUpperCase();}
     if(!serial||serial.length<5||existingSerials[serial]){skipped++;return;}
-    existingSerials[serial]=true;
-    items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
+    existingSerials[serial]=true;items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
   });
   if(!items.length){toast("No new items to import ("+skipped+" skipped)");return;}
   setSyncStatus("syncing","importing "+items.length+"...");
-  var batches=[];
-  for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
+  var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
   var chain=Promise.resolve();
   batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
   chain.then(function(){return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});})
   .then(function(){closeM("m-import");document.getElementById("import-txt").value="";toast("Imported "+items.length+" items");loadData();})
   .catch(function(){setSyncStatus("err","import failed");toast("Import error — try again");});
 }
-
 function updateSNCount(){
   var lines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
   var badge=document.getElementById("add-sn-count");
-  if(lines.length>0){badge.textContent=lines.length+(lines.length===1?" serial":" serials");badge.style.display="inline-block";}
-  else{badge.style.display="none";}
+  if(lines.length>0){badge.textContent=lines.length+(lines.length===1?" serial":" serials");badge.style.display="inline-block";}else{badge.style.display="none";}
 }
-
 function doAdd(){
-  var name=document.getElementById("add-name").value.trim();
-  var skuCode=document.getElementById("add-skucode").value.trim();
-  var notes=document.getElementById("add-notes").value.trim();
+  var name=document.getElementById("add-name").value.trim();var skuCode=document.getElementById("add-skucode").value.trim();var notes=document.getElementById("add-notes").value.trim();
   var rawLines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
   if(!name&&!skuCode){toast("Enter a model name or SKU");return;}
-  var displayName=name||skuCode;
-  var now=new Date().toISOString();
-  var existingSerials={};
-  inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
+  var displayName=name||skuCode;var now=new Date().toISOString();var existingSerials={};inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
   if(!rawLines.length){
     var placeholder={serial:"NO-SN-"+displayName.replace(/\s+/g,"-").toUpperCase()+"-"+Date.now(),sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now};
     setSyncStatus("syncing","saving...");
     fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify([placeholder])})
     .then(function(){return sbPost("activity_log",{msg:"Added model (no serial): "+displayName+(skuCode?" ["+skuCode+"]":""),ts:now});})
     .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast("Model added");loadData();})
-    .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
-    return;
+    .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});return;
   }
   var items=[],skipped=0,seen={};
-  rawLines.forEach(function(sn){
-    if(sn.length<5){skipped++;return;}
-    if(existingSerials[sn]||seen[sn]){skipped++;return;}
-    seen[sn]=true;
-    items.push({serial:sn,sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now});
-  });
+  rawLines.forEach(function(sn){if(sn.length<5){skipped++;return;}if(existingSerials[sn]||seen[sn]){skipped++;return;}seen[sn]=true;items.push({serial:sn,sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now});});
   if(!items.length){toast("All serials already exist or are invalid ("+skipped+" skipped)");return;}
   setSyncStatus("syncing","saving "+items.length+"...");
   var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
@@ -1049,72 +815,31 @@ function doAdd(){
   .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
 }
-
 function exportCSV(){
-  var rows=[["Model","SKU","Serial","Status","Updated","Ref","Notes"]].concat(inv.map(function(i){return[i.sku,i.skuCode||"",i.serial,i.status,i.updatedAt,i.ref||"",i.notes||""];}));
+  var rows=[["Model","SKU","Serial","Status","Location","Updated","Ref","Notes"]].concat(inv.map(function(i){return[i.sku,i.skuCode||"",i.serial,i.status,i.location||"",i.updatedAt,i.ref||"",i.notes||""];}));
   var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-  var a=document.createElement("a");
-  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
-  a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";
-  a.click();
+  var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";a.click();
 }
-
-function openM(id){
-  document.getElementById(id).classList.add("open");
-  if(id==="m-add") document.getElementById("add-sn-count").style.display="none";
-  if(id==="m-rma") updateReasonHint();
-}
+function openM(id){document.getElementById(id).classList.add("open");if(id==="m-add") document.getElementById("add-sn-count").style.display="none";if(id==="m-rma") updateReasonHint();}
 function closeM(id){document.getElementById(id).classList.remove("open");}
 window.addEventListener("click",function(e){if(e.target.classList.contains("mbg")&&e.target.id!=="m-lock")e.target.classList.remove("open");});
-
 var tt;
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";clearTimeout(tt);tt=setTimeout(function(){t.style.opacity="0";},2500);}
-
 var aiHistory=[];
-function toggleAI(){
-  var panel=document.getElementById("ai-panel");
-  panel.classList.toggle("open");
-  if(panel.classList.contains("open")) document.getElementById("ai-input").focus();
-}
+function toggleAI(){var panel=document.getElementById("ai-panel");panel.classList.toggle("open");if(panel.classList.contains("open")) document.getElementById("ai-input").focus();}
 async function sendAI(){
-  var input=document.getElementById("ai-input");
-  var msg=input.value.trim();
-  if(!msg) return;
-  appendAIMsg(msg,"user");
-  input.value="";
-  document.getElementById("ai-send").disabled=true;
+  var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg) return;
+  appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;
   var thinking=appendAIMsg("Thinking\u2026","system");
   try{
     var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});
-    var data=await res.json();
-    thinking.remove();
-    if(data.error){
-      appendAIMsg("Error: "+data.error,"system");
-    } else {
-      var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";
-      appendAIMsg(reply,"assistant");
-      aiHistory.push({role:"user",content:msg});
-      aiHistory.push({role:"assistant",content:reply});
-      if(aiHistory.length>20) aiHistory=aiHistory.slice(-20);
-      if(data.commandCount>0) setTimeout(loadData,800);
-    }
-  }catch(e){
-    thinking.remove();
-    appendAIMsg("Connection error \u2014 try again","system");
-  }
-  document.getElementById("ai-send").disabled=false;
-  document.getElementById("ai-input").focus();
+    var data=await res.json();thinking.remove();
+    if(data.error){appendAIMsg("Error: "+data.error,"system");}
+    else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20) aiHistory=aiHistory.slice(-20);if(data.commandCount>0) setTimeout(loadData,800);}
+  }catch(e){thinking.remove();appendAIMsg("Connection error \u2014 try again","system");}
+  document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();
 }
-function appendAIMsg(text,role){
-  var wrap=document.getElementById("ai-messages");
-  var div=document.createElement("div");
-  div.className="ai-msg "+role;
-  div.textContent=text;
-  wrap.appendChild(div);
-  wrap.scrollTop=wrap.scrollHeight;
-  return div;
-}
-
+function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 updateLockUI();
 loadData();
 </script>
