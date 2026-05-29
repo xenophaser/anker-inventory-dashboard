@@ -34,28 +34,41 @@ export default async function handler(req, res) {
     };
 
     // ── Tool implementations ───────────────────────────────
-    async function tool_get_inventory({ sku_code, status, location, limit = 1000 }) {
-      const params = new URLSearchParams();
-      params.append('select', 'serial,sku,sku_code,status,location,ref,notes,updated_at');
-      params.append('order', 'sku.asc,serial.asc');
-      params.append("limit", String(Math.min(limit, 2000)));
-      if (sku_code) params.append('sku_code', `eq.${sku_code}`);
-      if (status)   params.append('status', `eq.${status}`);
-      if (location) params.append('location', `eq.${location}`);
-      const r = await fetch(`${SB_URL}/rest/v1/inventory?${params}`, { headers: SB_HEADERS });
-      if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
-      const rows = await r.json();
-      // If large result, return aggregated summary instead of raw rows
-      if (rows.length > 100) {
+    async function tool_get_inventory({ sku_code, sku_name, status, location, limit = 100 }) {
+      const baseParams = new URLSearchParams();
+      baseParams.append('select', 'serial,sku,sku_code,status,location');
+      if (sku_code) baseParams.append('sku_code', `eq.${sku_code}`);
+      if (sku_name) baseParams.append('sku', `ilike.*${sku_name}*`);
+      if (status)   baseParams.append('status', `eq.${status}`);
+      if (location) baseParams.append('location', `eq.${location}`);
+
+      // Paginate to get ALL matching rows
+      let allRows = [];
+      let offset = 0;
+      const pageSize = 1000;
+      while (true) {
+        const p = new URLSearchParams(baseParams);
+        p.append('limit', String(pageSize));
+        p.append('offset', String(offset));
+        const r = await fetch(`${SB_URL}/rest/v1/inventory?${p}`, { headers: SB_HEADERS });
+        if (!r.ok) throw new Error(`Supabase error: ${await r.text()}`);
+        const rows = await r.json();
+        allRows = allRows.concat(rows);
+        if (rows.length < pageSize) break;
+        offset += pageSize;
+        if (offset > 10000) break;
+      }
+
+      if (allRows.length > 50) {
         const byStatus = {};
         const byLocation = {};
-        for (const row of rows) {
+        for (const row of allRows) {
           byStatus[row.status] = (byStatus[row.status] || 0) + 1;
           if (row.location) byLocation[row.location] = (byLocation[row.location] || 0) + 1;
         }
-        return { total: rows.length, by_status: byStatus, by_location: byLocation, sample: rows.slice(0, 5) };
+        return { exact_total_in_database: allRows.length, by_status: byStatus, by_location: byLocation };
       }
-      return rows;
+      return allRows;
     }
 
     async function tool_get_serial({ serial }) {
