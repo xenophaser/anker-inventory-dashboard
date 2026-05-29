@@ -254,6 +254,7 @@ Guidelines:
 - For dispatch: confirm the unit is in-stock first
 - Be concise and clear in your responses — warehouse staff are busy
 - When showing inventory lists, format them clearly
+- IMPORTANT: When get_inventory returns a summary object, always use 'exact_total_in_database' as the true count — never sum up by_status or by_location values as they may be incomplete
 - For bulk operations, warn the user and confirm before proceeding
 - Respond in the same language the user writes in (Spanish or English)`;
 
