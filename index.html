@@ -543,14 +543,16 @@ var pinBuffer = "";
 var selectedUsername = "";
 
 async function initLogin() {
-  // Load users from Supabase
+  console.log("initLogin called");
   try {
     var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_users"})});
+    console.log("get_users status:", r.status);
     var data = await r.json();
+    console.log("get_users data:", data);
     allUsers = data.users || [];
     renderUserGrid();
   } catch(e) {
-    console.error("Could not load users", e);
+    console.error("Could not load users:", e);
   }
 }
 
