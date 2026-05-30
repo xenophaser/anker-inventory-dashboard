@@ -543,14 +543,16 @@ var pinBuffer = "";
 var selectedUsername = "";
 
 async function initLogin() {
-  console.log("initLogin called");
+  console.log("initLogin called, user-grid:", document.getElementById("user-grid"));
   try {
     var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_users"})});
     console.log("get_users status:", r.status);
     var data = await r.json();
     console.log("get_users data:", data);
     allUsers = data.users || [];
+    console.log("allUsers set to:", allUsers.length, "users");
     renderUserGrid();
+    console.log("renderUserGrid called");
   } catch(e) {
     console.error("Could not load users:", e);
   }
@@ -1252,11 +1254,7 @@ window.pinBack = pinBack;
 window.pinClear = pinClear;
 window.selectUser = selectUser;
 updateLockUI();
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initLogin);
-} else {
-  initLogin();
-}
+setTimeout(initLogin, 100);
 
 </body>
 </html>
