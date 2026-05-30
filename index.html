@@ -1252,7 +1252,11 @@ window.pinBack = pinBack;
 window.pinClear = pinClear;
 window.selectUser = selectUser;
 updateLockUI();
-initLogin();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLogin);
+} else {
+  initLogin();
+}
 
 </body>
 </html>
