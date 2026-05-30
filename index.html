@@ -533,6 +533,7 @@ var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
 
 
+<script>
 // ══════════════════════════════════════════════════════════════
 // USER SYSTEM v2.7
 // ══════════════════════════════════════════════════════════════
@@ -943,6 +944,15 @@ function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||
     </div>
   </div>
 </div>
+// Expose login functions globally for inline onclick handlers
+window.pinKey = pinKey;
+window.pinBack = pinBack;
+window.pinClear = pinClear;
+window.selectUser = selectUser;
+updateLockUI();
+initLogin();
+
+</script>
 </body></html>";var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
 function goRMASub(t){var s=["returns","incoming","shipments"];document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",s[i]===t);});document.querySelectorAll(".rma-subsec").forEach(function(x){x.classList.remove("active");});document.getElementById("rmasub-"+t).classList.add("active");}
 function fd(ts){if(!ts)return"";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
@@ -1256,13 +1266,6 @@ function toggleAI(){var p=document.getElementById("ai-panel");p.classList.toggle
 async function sendAI(){var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg)return;appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;var t=appendAIMsg("Thinking…","system");try{var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});var data=await res.json();t.remove();if(data.error){appendAIMsg("Error: "+data.error,"system");}else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);if(data.commandCount>0)setTimeout(loadData,800);}}catch(e){t.remove();appendAIMsg("Connection error","system");}document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();}
 function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 
-// Expose login functions globally for inline onclick handlers
-window.pinKey = pinKey;
-window.pinBack = pinBack;
-window.pinClear = pinClear;
-window.selectUser = selectUser;
-updateLockUI();
-initLogin();
 
 </body>
 </html>
