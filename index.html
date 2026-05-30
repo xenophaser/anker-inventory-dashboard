@@ -22,7 +22,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Windmar · Anker Inventory</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
 :root{
   --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;--border2:#333;
@@ -1086,6 +1085,15 @@ function clearSig(){if(_sigCtx){var c=document.getElementById("sig-canvas");_sig
 
 // ── Stamp PDF with pdf-lib ────────────────────────────────────
 async function generateStampedPdf(){
+  // Load pdf-lib dynamically if not already loaded
+  if (typeof PDFLib === 'undefined') {
+    await new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+      s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
   toast("Generating PDF...");
   try{
     var ref=document.getElementById("ref").value.trim();
@@ -1254,7 +1262,7 @@ window.pinBack = pinBack;
 window.pinClear = pinClear;
 window.selectUser = selectUser;
 updateLockUI();
-window.addEventListener('load', function(){ setTimeout(initLogin, 50); });
+initLogin();
 
 </body>
 </html>
