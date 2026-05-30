@@ -951,7 +951,7 @@ async function initLogin() {
     grid.innerHTML = allUsers.map(function(u) {
       var initials = u.display_name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().slice(0,2);
       var cls = u.role === "admin" || u.role === "dispatcher" ? "admin-btn" : "driver-btn";
-      return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='window.selectUser(""+u.username+"")'>"
+      return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='window.selectUser(\""+u.username+"\")'>"
         +"<div class='user-avatar'>"+initials+"</div>"
         +"<div class='user-name'>"+u.display_name+"</div>"
         +"</div>";
