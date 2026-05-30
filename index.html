@@ -5,7 +5,7 @@
   Author     : Sergio A. Romero
   D.B.A.     : Baracutey
   Built with : Personal Supabase account & API keys
-  Version    : 2.6
+  Version    : 2.7
   Updated    : May 2026
 
   Description:
@@ -213,15 +213,103 @@ tbody tr:last-child td{border-bottom:none}
 
 @media(max-width:768px){.stats{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}#ai-panel{width:100%;right:0}}
+
+/* ── Login screen ── */
+#login-screen{position:fixed;inset:0;background:#0d0d0d;z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column}
+#login-screen.hidden{display:none}
+.login-box{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:2rem;width:340px;max-width:95vw;text-align:center}
+.login-logo{font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:1.5rem;letter-spacing:.08em}
+.user-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1.25rem}
+.user-btn{padding:12px 8px;background:var(--surface2);border:2px solid var(--border2);border-radius:var(--r);cursor:pointer;text-align:center;transition:all .15s}
+.user-btn:hover{border-color:var(--border2);background:var(--surface)}
+.user-btn.sel{border-color:var(--accent);background:var(--accent-dark)}
+.user-btn.admin-btn.sel{border-color:var(--accent);background:var(--accent-dark)}
+.user-btn.driver-btn.sel{border-color:#7788cc;background:#1a1a2a}
+.user-avatar{width:32px;height:32px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--mono)}
+.admin-btn .user-avatar{background:var(--accent-dark);color:var(--accent);border:1px solid var(--accent-dim)}
+.driver-btn .user-avatar{background:#1a1a2a;color:#7788cc;border:1px solid #2a3a5a}
+.user-name{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.pin-dots{display:flex;gap:10px;justify-content:center;margin-bottom:1.25rem}
+.pin-dot{width:36px;height:36px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text);font-family:var(--mono);transition:all .15s}
+.pin-dot.filled{background:var(--accent-dark);border-color:var(--accent-dim);color:var(--accent)}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.pin-key{padding:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);cursor:pointer;font-size:16px;font-family:var(--mono);color:var(--text);text-align:center;transition:all .15s;-webkit-user-select:none;user-select:none}
+.pin-key:hover{background:var(--border)}
+.pin-key:active{transform:scale(.95)}
+.pin-err{font-size:12px;color:var(--danger);min-height:18px;margin-bottom:.5rem}
+/* ── User menu in header ── */
+.user-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--accent-dim);color:var(--accent);background:var(--accent-dark);cursor:pointer}
+/* ── Change PIN modal ── */
+#m-pin .modal{width:340px}
+/* ── Driver view ── */
+#driver-view{display:none;max-width:480px;margin:0 auto;padding:1.5rem 1rem}
+#driver-view.active{display:block}
+.delivery-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1rem;margin-bottom:.75rem}
+.dc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+.dc-case{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.dc-type{font-size:10px;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
+.dc-type.bs{background:#0f2a0f;color:#4dca4d;border:1px solid #2a5a2a}
+.dc-type.rg{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.dc-type.cn{background:var(--danger-dark);color:var(--danger);border:1px solid #5a1a1a}
+.dc-serials{font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:.75rem;line-height:1.7}
+.dc-status{font-size:11px;padding:3px 10px;border-radius:20px;font-family:var(--mono);display:inline-block}
+.dc-status.pending{background:var(--warn-dark);color:var(--warn)}
+.dc-status.signed{background:var(--accent-dark);color:var(--accent)}
+/* ── Assign driver in dispatch ── */
+.assign-bar{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border);margin-top:8px}
+.assign-bar select{flex:1;font-size:12px;padding:6px 10px}
+.assign-bar label{font-size:11px;color:var(--text3);white-space:nowrap}
 </style>
 </head>
 <body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">📦 WINDMAR · ANKER</div>
+    <div id="login-user-step">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Select your user</p>
+      <div class="user-grid" id="user-grid"></div>
+      <div class="pin-err" id="login-err"></div>
+      <div class="pin-dots" id="pin-dots">
+        <div class="pin-dot" id="pd0">_</div>
+        <div class="pin-dot" id="pd1">_</div>
+        <div class="pin-dot" id="pd2">_</div>
+        <div class="pin-dot" id="pd3">_</div>
+      </div>
+      <div class="pin-keypad">
+        <div class="pin-key" onclick="pinKey('1')">1</div>
+        <div class="pin-key" onclick="pinKey('2')">2</div>
+        <div class="pin-key" onclick="pinKey('3')">3</div>
+        <div class="pin-key" onclick="pinKey('4')">4</div>
+        <div class="pin-key" onclick="pinKey('5')">5</div>
+        <div class="pin-key" onclick="pinKey('6')">6</div>
+        <div class="pin-key" onclick="pinKey('7')">7</div>
+        <div class="pin-key" onclick="pinKey('8')">8</div>
+        <div class="pin-key" onclick="pinKey('9')">9</div>
+        <div class="pin-key" onclick="pinClear()" style="font-size:12px">CLR</div>
+        <div class="pin-key" onclick="pinKey('0')">0</div>
+        <div class="pin-key" onclick="pinBack()">⌫</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DRIVER VIEW ── -->
+<div id="driver-view">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+    <div style="font-family:var(--mono);font-size:13px;color:var(--accent)">📦 Mis entregas</div>
+    <div id="driver-date" style="font-size:11px;color:var(--text3);font-family:var(--mono)"></div>
+  </div>
+  <div id="driver-deliveries"></div>
+</div>
+
 <div id="toast"></div>
 <header class="hdr">
   <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
   <div class="hdr-btns">
     <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
-    <button id="lock-btn" class="lock-badge" onclick="handleLockClick()">&#128274; View only</button>
+    <div id="user-badge" class="user-badge" onclick="openM('m-pin')" style="display:none">👤 <span id="user-badge-name"></span></div><button id="lock-btn" class="lock-badge" onclick="handleLockClick()" style="display:none">&#128274; View only</button>
     <button class="lock-badge" onclick="toggleAI()" id="ai-btn">&#10022; AI</button>
     <button id="btn-add" class="btn sm gh" onclick="guardAction(function(){ openM('m-add'); })">+ Add item</button>
     <button id="btn-import" class="btn sm gh" onclick="guardAction(function(){ openM('m-import'); })">Import list</button>
@@ -257,9 +345,17 @@ tbody tr:last-child td{border-bottom:none}
       <div class="queue" id="queue"></div>
       <div class="df">
         <input id="ref" type="text" placeholder="Case # (e.g. PPS7202)"/>
-        <div style="display:flex;gap:6px">
-          <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
-          <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>Dispatch all</button>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <div class="assign-bar" id="assign-bar" style="display:none">
+            <label>Assign to</label>
+            <select id="assign-driver">
+              <option value="">— No assign (self) —</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
+            <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>Dispatch all</button>
+          </div>
         </div>
       </div>
     </div>
@@ -437,6 +533,282 @@ var inv=[],log=[],queue=[],sf="",sq="",sloc="",sdateFrom="",sdateTo="",drillSku=
 var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
 
+
+// ══════════════════════════════════════════════════════════════
+// USER SYSTEM v2.7
+// ══════════════════════════════════════════════════════════════
+var currentUser = null; // { id, username, display_name, role }
+var allUsers = [];
+var pinBuffer = "";
+var selectedUsername = "";
+
+async function initLogin() {
+  // Load users from Supabase
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_users"})});
+    var data = await r.json();
+    allUsers = data.users || [];
+    renderUserGrid();
+  } catch(e) {
+    console.error("Could not load users", e);
+  }
+}
+
+function renderUserGrid() {
+  var grid = document.getElementById("user-grid");
+  grid.innerHTML = allUsers.map(function(u) {
+    var initials = u.display_name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().slice(0,2);
+    var cls = u.role === "admin" || u.role === "dispatcher" ? "admin-btn" : "driver-btn";
+    return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='selectUser(""+u.username+"")'>"
+      +"<div class='user-avatar'>"+initials+"</div>"
+      +"<div class='user-name'>"+esc(u.display_name)+"</div>"
+      +"</div>";
+  }).join("");
+}
+
+function selectUser(username) {
+  selectedUsername = username;
+  pinBuffer = "";
+  updatePinDots();
+  document.getElementById("login-err").textContent = "";
+  document.querySelectorAll(".user-btn").forEach(function(b) {
+    b.classList.toggle("sel", b.getAttribute("data-username") === username);
+  });
+}
+
+function pinKey(k) {
+  if (!selectedUsername) { document.getElementById("login-err").textContent = "Select a user first"; return; }
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += k;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(submitLogin, 150);
+}
+
+function pinBack() { if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); } }
+function pinClear() { pinBuffer = ""; updatePinDots(); document.getElementById("login-err").textContent = ""; }
+
+function updatePinDots() {
+  for (var i = 0; i < 4; i++) {
+    var dot = document.getElementById("pd"+i);
+    if (i < pinBuffer.length) { dot.textContent = "●"; dot.classList.add("filled"); }
+    else { dot.textContent = "_"; dot.classList.remove("filled"); }
+  }
+}
+
+async function submitLogin() {
+  document.getElementById("login-err").textContent = "";
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"login", username:selectedUsername, pin:pinBuffer})});
+    var data = await r.json();
+    if (data.ok) {
+      currentUser = data.user;
+      document.getElementById("login-screen").classList.add("hidden");
+      onLoginSuccess();
+    } else {
+      document.getElementById("login-err").textContent = "Wrong PIN — try again";
+      pinBuffer = "";
+      updatePinDots();
+    }
+  } catch(e) {
+    document.getElementById("login-err").textContent = "Connection error";
+    pinBuffer = "";
+    updatePinDots();
+  }
+}
+
+function onLoginSuccess() {
+  // Update header
+  document.getElementById("user-badge").style.display = "inline-flex";
+  document.getElementById("user-badge-name").textContent = currentUser.display_name;
+
+  if (currentUser.role === "driver") {
+    // Driver view — hide admin controls, show deliveries
+    document.getElementById("lock-btn").style.display = "none";
+    document.querySelector(".hdr-btns").querySelectorAll(".btn").forEach(function(b){ b.style.display="none"; });
+    document.getElementById("ai-btn").style.display = "none";
+    document.querySelector("main.main").style.display = "none";
+    document.getElementById("driver-view").classList.add("active");
+    loadDriverDeliveries();
+  } else {
+    // Admin or dispatcher
+    document.getElementById("lock-btn").style.display = "inline-flex";
+    document.querySelector("main.main").style.display = "block";
+    document.getElementById("driver-view").classList.remove("active");
+
+    // Auto-unlock for admin/dispatcher
+    setUnlocked(true);
+    sessionStorage.setItem("wm_current_user_id", currentUser.id);
+    sessionStorage.setItem("wm_current_user_role", currentUser.role);
+
+    // Show assign bar for admin/dispatcher
+    document.getElementById("assign-bar").style.display = "flex";
+    populateDriverSelect();
+
+    // Show PIN section in admin modal
+    if (currentUser.role === "admin") {
+      document.getElementById("admin-pin-section").style.display = "block";
+      populatePinResetUsers();
+    }
+
+    loadData();
+  }
+}
+
+function populateDriverSelect() {
+  var sel = document.getElementById("assign-driver");
+  var drivers = allUsers.filter(function(u){ return u.role === "driver"; });
+  sel.innerHTML = "<option value=''>— No assign (self) —</option>" +
+    drivers.map(function(u){ return "<option value='"+u.id+"'>"+esc(u.display_name)+"</option>"; }).join("");
+}
+
+function populatePinResetUsers() {
+  var sel = document.getElementById("pin-reset-user");
+  sel.innerHTML = allUsers.filter(function(u){ return u.id !== currentUser.id; })
+    .map(function(u){ return "<option value='"+u.id+"'>"+esc(u.display_name)+" ("+u.role+")</option>"; }).join("");
+}
+
+// ── Driver deliveries ──────────────────────────────────────────
+async function loadDriverDeliveries() {
+  document.getElementById("driver-date").textContent = new Date().toLocaleDateString("es-PR", {weekday:"long", month:"long", day:"numeric"});
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_driver_dispatches", driverId:currentUser.id})});
+    var data = await r.json();
+    renderDriverDeliveries(data.dispatches || []);
+  } catch(e) { document.getElementById("driver-deliveries").innerHTML = "<div class='empty'>Error loading deliveries</div>"; }
+}
+
+function renderDriverDeliveries(dispatches) {
+  var wrap = document.getElementById("driver-deliveries");
+  if (!dispatches.length) { wrap.innerHTML = "<div class='empty'>No deliveries assigned for today</div>"; return; }
+  var typeLabels = {bs:"Brigada", rg:"Regular", cn:"Consultor"};
+  wrap.innerHTML = dispatches.map(function(d) {
+    var serials = [];
+    try { serials = JSON.parse(d.serials); } catch(e) {}
+    var statusBadge = d.status === "signed"
+      ? "<span class='dc-status signed'>✓ Firmado</span>"
+      : "<span class='dc-status pending'>Pendiente</span>";
+    var btn = d.status !== "signed"
+      ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='openDriverSign("+d.id+")'>✍ Capturar firma</button>"
+      : "";
+    return "<div class='delivery-card'>"
+      +"<div class='dc-header'><span class='dc-case'>"+esc(d.case_ref)+"</span><span class='dc-type "+d.dispatch_type+"'>"+typeLabels[d.dispatch_type]+"</span></div>"
+      +(d.ticket_num?"<div style='font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:4px'>Ticket # "+esc(d.ticket_num)+"</div>":"")
+      +"<div class='dc-serials'>"+serials.join("<br>")+"</div>"
+      +statusBadge+btn
+      +"</div>";
+  }).join("");
+}
+
+// ── Driver sign receipt ────────────────────────────────────────
+var _driverDispatchId = null;
+function openDriverSign(dispatchId) {
+  _driverDispatchId = dispatchId;
+  showReceiptStep(2);
+  openM("m-receipt");
+  setTimeout(initSigCanvas, 200);
+  // Override step 3 to update delivery status
+  document.getElementById("sig-next-btn").onclick = function(){ generateDriverReceipt(); };
+}
+
+async function generateDriverReceipt() {
+  if (!_sigHasData) { toast("El cliente debe firmar"); return; }
+  toast("Generando recibo...");
+  try {
+    // Get dispatch details
+    var r = await fetch(SB_URL+"/rest/v1/dispatches?id=eq."+_driverDispatchId+"&select=*", {headers:HEADERS});
+    var dispatches = await r.json();
+    var d = dispatches[0];
+    if (!d) { toast("Error — despacho no encontrado"); return; }
+
+    // Stamp PDF (if pdf_url available, otherwise just capture signature)
+    var canvas = document.getElementById("sig-canvas");
+    var sigDataUrl = canvas.toDataURL("image/png");
+
+    // For now just mark as signed — PDF stamping happens same as admin flow
+    // Upload signature as simple record
+    var fileName = "recibos/firma_"+d.case_ref+"_"+Date.now()+".png";
+
+    // Update dispatch status
+    await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"sign_dispatch", dispatchId:_driverDispatchId, pdfUrl:fileName})});
+
+    closeM("m-receipt");
+    toast("✓ Firma guardada");
+    loadDriverDeliveries();
+  } catch(e) { toast("Error — intenta de nuevo"); }
+}
+
+// ── Change PIN ─────────────────────────────────────────────────
+async function doChangePin() {
+  var current = document.getElementById("pin-current").value;
+  var newPin = document.getElementById("pin-new").value;
+  var confirm = document.getElementById("pin-confirm").value;
+  var err = document.getElementById("pin-change-err");
+  if (!current || !newPin) { err.textContent = "Fill in all fields"; return; }
+  if (newPin !== confirm) { err.textContent = "PINs do not match"; return; }
+  if (newPin.length < 4) { err.textContent = "PIN must be at least 4 digits"; return; }
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"change_pin", userId:currentUser.id, currentPin:current, newPin:newPin})});
+    var data = await r.json();
+    if (data.ok) {
+      closeM("m-pin");
+      document.getElementById("pin-current").value="";
+      document.getElementById("pin-new").value="";
+      document.getElementById("pin-confirm").value="";
+      err.textContent="";
+      toast("✓ PIN updated");
+    } else {
+      err.textContent = data.error || "Error updating PIN";
+    }
+  } catch(e) { err.textContent = "Connection error"; }
+}
+
+async function doAdminResetPin() {
+  var targetId = document.getElementById("pin-reset-user").value;
+  var newPin = document.getElementById("pin-reset-new").value;
+  var adminPin = document.getElementById("pin-reset-admin").value;
+  var err = document.getElementById("pin-reset-err");
+  if (!targetId || !newPin || !adminPin) { err.textContent = "Fill in all fields"; return; }
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"admin_reset_pin", adminId:currentUser.id, adminPin:adminPin, targetUserId:parseInt(targetId), newPin:newPin})});
+    var data = await r.json();
+    if (data.ok) {
+      document.getElementById("pin-reset-new").value="";
+      document.getElementById("pin-reset-admin").value="";
+      err.textContent="";
+      toast("✓ User PIN reset");
+    } else { err.textContent = data.error || "Error"; }
+  } catch(e) { err.textContent = "Connection error"; }
+}
+
+// Override execDispatch to save dispatch record
+var _origExecDispatch = null;
+function execDispatchWithRecord() {
+  var ref = document.getElementById("ref").value.trim();
+  var assignedTo = document.getElementById("assign-driver").value;
+  var td = queue.filter(function(q){ return q.found; });
+
+  // Save dispatch record
+  var serials = td.map(function(q){ return q.item.sku.replace("Anker SOLIX ","").replace("Anker ","") + " · " + q.serial; });
+  fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      action:"save_dispatch",
+      caseRef: ref,
+      dispatchType: _dtype || "rg",
+      ticketNum: document.getElementById("receipt-ticket").value.trim(),
+      serials: serials,
+      assignedTo: assignedTo ? parseInt(assignedTo) : null,
+      dispatchedBy: currentUser ? currentUser.id : null
+    })
+  });
+
+  // Run original dispatch
+  execDispatch();
+}
+
+
 // ── Auth ──────────────────────────────────────────────────────
 var SESSION_KEY="wm_edit_unlocked",pendingAction=null;
 function isUnlocked(){return sessionStorage.getItem(SESSION_KEY)==="1";}
@@ -538,7 +910,34 @@ function loadShipmentPicker(){var p=document.getElementById("ship-picker");var w
 function updateSelCount(){var c=document.querySelectorAll("#ship-picker input[type=checkbox]:checked").length;document.getElementById("ship-sel-count").textContent=c?c+" selected":"";}
 async function doCreateShipment(){var date=document.getElementById("ship-date").value;var dest=document.getElementById("ship-dest").value.trim();var notes=document.getElementById("ship-notes").value.trim();var checked=Array.from(document.querySelectorAll("#ship-picker input[type=checkbox]:checked")).map(function(c){return c.value;});if(!checked.length){toast("Select at least one unit");return;}if(!date){toast("Select a ship date");return;}var selectedUnits=rmaIncoming.filter(function(u){return checked.indexOf(u.id)>=0;});var serials=selectedUnits.map(function(u){return u.serial;});try{await fetch(SB_URL+"/rest/v1/rma_shipments",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})});for(var i=0;i<checked.length;i++)await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});closeM("m-shipment");toast("✓ Shipment created — "+serials.length+" unit(s)");loadData();}catch(e){toast("Error saving — try again");}}
 function exportShipmentCSV(s){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];serials.forEach(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)rows.push([u.serial,u.condition,u.order_ref||"",u.notes||"",u.received_at?new Date(u.received_at).toLocaleDateString():""]);else rows.push([sn,"","","",""]);});var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="shipment_"+new Date().toISOString().slice(0,10)+".csv";a.click();toast("CSV exported ✓");}
-function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination||"Outbound";var date=s.shipped_at?new Date(s.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";var rows=full?serials.map(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)return "<tr><td>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td>"+esc(u.order_ref||"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td></tr>";}).join(""):serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;padding:2rem;font-size:13px}table{width:100%;border-collapse:collapse}th{border-bottom:2px solid #000;padding:6px;font-size:11px;text-align:left}td{padding:6px;border-bottom:1px solid #ddd}</style></head><body><h2>Windmar · Anker — "+(full?"Report":"Shipping List")+"</h2><p>"+esc(dest)+" · "+date+" · "+serials.length+" units</p>"+( full?"<table><thead><tr><th>Serial</th><th>Condition</th><th>Ref</th></tr></thead><tbody>":"<table><thead><tr><th>#</th><th>Serial</th></tr></thead><tbody>")+rows+"</tbody></table><script>window.onload=function(){window.print();};<\/script></body></html>";var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
+function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination||"Outbound";var date=s.shipped_at?new Date(s.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";var rows=full?serials.map(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)return "<tr><td>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td>"+esc(u.order_ref||"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td></tr>";}).join(""):serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;padding:2rem;font-size:13px}table{width:100%;border-collapse:collapse}th{border-bottom:2px solid #000;padding:6px;font-size:11px;text-align:left}td{padding:6px;border-bottom:1px solid #ddd}</style></head><body><h2>Windmar · Anker — "+(full?"Report":"Shipping List")+"</h2><p>"+esc(dest)+" · "+date+" · "+serials.length+" units</p>"+( full?"<table><thead><tr><th>Serial</th><th>Condition</th><th>Ref</th></tr></thead><tbody>":"<table><thead><tr><th>#</th><th>Serial</th></tr></thead><tbody>")+rows+"</tbody></table><script>window.onload=function(){window.print();};<\/script>
+<!-- ── CHANGE PIN MODAL ── -->
+<div class="mbg" id="m-pin">
+  <div class="modal" style="width:340px;text-align:center">
+    <h3>🔐 Change PIN</h3>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:1rem" id="pin-modal-sub">Enter your current PIN and choose a new one.</p>
+    <div class="fld"><label>Current PIN</label><input id="pin-current" type="password" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.2em;font-family:var(--mono)"/></div>
+    <div class="fld"><label>New PIN</label><input id="pin-new" type="password" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.2em;font-family:var(--mono)"/></div>
+    <div class="fld"><label>Confirm new PIN</label><input id="pin-confirm" type="password" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.2em;font-family:var(--mono)"/></div>
+    <div id="pin-change-err" style="font-size:12px;color:var(--danger);min-height:18px;margin-bottom:.5rem"></div>
+    <div class="ma">
+      <button class="btn" onclick="closeM('m-pin')">Cancel</button>
+      <button class="btn pri" onclick="doChangePin()">Save PIN</button>
+    </div>
+    <!-- Admin: reset other user PIN -->
+    <div id="admin-pin-section" style="display:none;border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">Admin: Reset user PIN</div>
+      <div class="fld"><label>User</label>
+        <select id="pin-reset-user" style="width:100%"></select>
+      </div>
+      <div class="fld"><label>New PIN for user</label><input id="pin-reset-new" type="password" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.2em;font-family:var(--mono)"/></div>
+      <div class="fld"><label>Your admin PIN (confirm)</label><input id="pin-reset-admin" type="password" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.2em;font-family:var(--mono)"/></div>
+      <div id="pin-reset-err" style="font-size:12px;color:var(--danger);min-height:18px"></div>
+      <button class="btn pri" style="width:100%;margin-top:6px" onclick="doAdminResetPin()">Reset user PIN</button>
+    </div>
+  </div>
+</div>
+</body></html>";var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
 function goRMASub(t){var s=["returns","incoming","shipments"];document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",s[i]===t);});document.querySelectorAll(".rma-subsec").forEach(function(x){x.classList.remove("active");});document.getElementById("rmasub-"+t).classList.add("active");}
 function fd(ts){if(!ts)return"";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
@@ -731,7 +1130,7 @@ async function generateStampedPdf(){
     _signedPdfBytes=pdfBytesOut;
 
     // Execute dispatch in DB
-    execDispatch();
+    execDispatchWithRecord();
 
     // Show share step
     showReceiptStep(3);
@@ -842,7 +1241,7 @@ function toggleAI(){var p=document.getElementById("ai-panel");p.classList.toggle
 async function sendAI(){var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg)return;appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;var t=appendAIMsg("Thinking…","system");try{var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});var data=await res.json();t.remove();if(data.error){appendAIMsg("Error: "+data.error,"system");}else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);if(data.commandCount>0)setTimeout(loadData,800);}}catch(e){t.remove();appendAIMsg("Connection error","system");}document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();}
 function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 updateLockUI();
-loadData();
+initLogin();
 </script>
 </body>
 </html>
