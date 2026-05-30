@@ -533,7 +533,7 @@ var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
 
 
-<script>
+
 // ══════════════════════════════════════════════════════════════
 // USER SYSTEM v2.7
 // ══════════════════════════════════════════════════════════════
@@ -918,6 +918,7 @@ function exportShipmentCSV(s){var serials=[];try{serials=JSON.parse(s.serials||"
 function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination||"Outbound";var date=s.shipped_at?new Date(s.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";var rows=full?serials.map(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)return "<tr><td>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td>"+esc(u.order_ref||"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td></tr>";}).join(""):serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;padding:2rem;font-size:13px}table{width:100%;border-collapse:collapse}th{border-bottom:2px solid #000;padding:6px;font-size:11px;text-align:left}td{padding:6px;border-bottom:1px solid #ddd}</style></head><body><h2>Windmar · Anker — "+(full?"Report":"Shipping List")+"</h2><p>"+esc(dest)+" · "+date+" · "+serials.length+" units</p>"+(full?"<table><thead><tr><th>Serial</th><th>Condition</th><th>Ref</th></tr></thead><tbody>":"<table><thead><tr><th>#</th><th>Serial</th></tr></thead><tbody>")+rows+"</tbody></table><script>window.onload=function(){window.print();};<\/script></body></html>";
   var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
 </script>
+
 <!-- ── CHANGE PIN MODAL ── -->
 <div class="mbg" id="m-pin">
   <div class="modal" style="width:340px;text-align:center">
@@ -944,6 +945,7 @@ function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||
     </div>
   </div>
 </div>
+<script>
 // Expose login functions globally for inline onclick handlers
 window.pinKey = pinKey;
 window.pinBack = pinBack;
