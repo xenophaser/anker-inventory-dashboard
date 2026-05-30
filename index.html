@@ -3,18 +3,17 @@
   Anker Warehouse — Inventory Management System
   ============================================================
   Author     : Sergio A. Romero
-  Institution: Inter American University of Puerto Rico
-               Metropolitan Campus — Computer Science
+  D.B.A.     : Baracutey
   Built with : Personal Supabase account & API keys
-  Version    : 2.5
+  Version    : 2.6
   Updated    : May 2026
 
   Description:
     Personal project built for warehouse inventory tracking
     of Anker products. Manages stock levels, dispatch, RMA
     returns, incoming damaged units, and outbound shipments.
-    Built and maintained independently — not an official
-    Windmar company system.
+    Built and maintained independently under Baracutey —
+    not an official Windmar company system.
   ============================================================
 -->
 <!DOCTYPE html>
@@ -23,6 +22,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Windmar · Anker Inventory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
 :root{
   --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;--border2:#333;
@@ -113,7 +113,6 @@ tbody tr:last-child td{border-bottom:none}
 .ri:last-child{border:none}
 .rt{color:var(--text3);min-width:90px}
 .empty{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
-.loading{text-align:center;padding:3rem;color:var(--text3);font-size:13px;font-family:var(--mono)}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-dark);padding:9px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;font-family:var(--mono)}
 #sync-indicator{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px}
 #sync-dot{width:6px;height:6px;border-radius:50%;background:var(--text3)}
@@ -133,7 +132,6 @@ tbody tr:last-child td{border-bottom:none}
 #lock-pw{width:100%;text-align:center;letter-spacing:.1em;font-family:var(--mono);font-size:15px}
 #lock-err{font-size:12px;color:var(--danger);text-align:center;margin-top:8px;min-height:18px}
 #lock-spinner{display:none;text-align:center;font-family:var(--mono);font-size:12px;color:var(--text3);margin-top:8px}
-.readonly-btn{opacity:.35;cursor:not-allowed !important;pointer-events:none}
 .rma-subtabs{display:flex;gap:2px;background:var(--surface);padding:3px;border-radius:var(--r);width:fit-content;border:1px solid var(--border)}
 .rma-subtab{padding:5px 14px;border-radius:4px;border:none;background:transparent;cursor:pointer;font-size:12px;font-family:var(--sans);color:var(--text2);transition:all .15s}
 .rma-subtab.active{background:var(--surface2);color:var(--text);font-weight:500}
@@ -160,7 +158,7 @@ tbody tr:last-child td{border-bottom:none}
 .br-summary span{font-family:var(--mono)}
 .br-summary .ok{color:var(--accent)}
 .br-summary .bad{color:var(--danger)}
-@media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;inset:0;background:#fff;color:#000;padding:2rem;font-family:Arial,sans-serif}#print-area h2{font-size:18px;margin-bottom:4px}#print-area .print-meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:8px}#print-area table{width:100%;border-collapse:collapse;font-size:12px}#print-area th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}#print-area td{padding:6px 8px;border-bottom:1px solid #ddd}#print-area .print-footer{margin-top:2rem;font-size:11px;color:#888}}
+@media print{body *{visibility:hidden}#print-area,#print-area *{visibility:visible}#print-area{position:fixed;inset:0;background:#fff;color:#000;padding:2rem;font-family:Arial,sans-serif}}
 #ai-panel{position:fixed;bottom:0;right:24px;width:340px;background:var(--surface);border:1px solid var(--border2);border-bottom:none;border-radius:var(--rl) var(--rl) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,.4);z-index:100;display:none;flex-direction:column}
 #ai-panel.open{display:flex}
 #ai-panel-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent)}
@@ -172,8 +170,49 @@ tbody tr:last-child td{border-bottom:none}
 #ai-input-row{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border)}
 #ai-input{flex:1;font-size:12px;padding:7px 10px}
 #ai-send{padding:7px 12px;font-size:12px}
+
+/* ── Dispatch type selector ── */
+.dtype-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.dtype-btn{padding:14px 8px;border-radius:var(--r);border:2px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:12px;font-weight:600;font-family:var(--sans);text-align:center;transition:all .2s}
+.dtype-btn:hover{opacity:.8}
+.dtype-btn.bs{border-color:#2a5a2a;color:#4dca4d}
+.dtype-btn.bs.sel{background:#0f2a0f;border-color:#4dca4d;color:#4dca4d}
+.dtype-btn.rg{border-color:var(--border2);color:var(--text)}
+.dtype-btn.rg.sel{background:#222;border-color:var(--text);color:var(--text)}
+.dtype-btn.cn{border-color:#5a1a1a;color:#e05555}
+.dtype-btn.cn.sel{background:#2a0f0f;border-color:#e05555;color:#e05555}
+
+/* ── PDF upload area ── */
+.pdf-drop{border:2px dashed var(--border2);border-radius:var(--r);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;color:var(--text3)}
+.pdf-drop:hover,.pdf-drop.dragover{border-color:var(--accent);color:var(--accent)}
+.pdf-drop.loaded{border-color:var(--accent-dim);background:var(--accent-dark);color:var(--accent)}
+
+/* ── Signature canvas ── */
+.sig-wrap{border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;background:#fff;position:relative}
+.sig-canvas{display:block;width:100%;height:120px;cursor:crosshair}
+.sig-label{position:absolute;bottom:6px;left:10px;font-size:10px;color:#999;pointer-events:none}
+
+/* ── Share buttons ── */
+.share-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem}
+.share-btn{padding:12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text);text-align:center;transition:all .15s}
+.share-btn:hover{background:var(--border)}
+.share-btn.wa{border-color:#25d366;color:#25d366}
+.share-btn.wa:hover{background:#0f2a1a}
+.share-btn.em{border-color:#7788cc;color:#7788cc}
+.share-btn.em:hover{background:#1a1a2a}
+.share-btn.lk{border-color:var(--warn);color:var(--warn)}
+.share-btn.lk:hover{background:var(--warn-dark)}
+.share-btn.pr{border-color:var(--text3);color:var(--text3)}
+.share-btn.pr:hover{background:var(--surface2);color:var(--text)}
+
+/* ── Step indicator ── */
+.steps{display:flex;gap:4px;margin-bottom:1.25rem}
+.step{flex:1;height:3px;border-radius:2px;background:var(--border2)}
+.step.done{background:var(--accent)}
+.step.active{background:var(--accent-dim)}
+
 @media(max-width:768px){.stats{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}#ai-panel{width:100%;right:0;border-radius:var(--rl) var(--rl) 0 0}}
+@media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}#ai-panel{width:100%;right:0}}
 </style>
 </head>
 <body>
@@ -195,7 +234,7 @@ tbody tr:last-child td{border-bottom:none}
     <div class="stat"><div class="lbl">In stock</div><div class="val green" id="s-stock">&#8212;</div></div>
     <div class="stat"><div class="lbl">Dispatched</div><div class="val red" id="s-disp">&#8212;</div></div>
     <div class="stat"><div class="lbl">RMA / Returns</div><div class="val orange" id="s-rma">&#8212;</div></div>
-    <div class="stat" id="s-damaged-card" onclick="go('rma');goRMASub('incoming')" style="cursor:pointer" title="Go to incoming damaged units">
+    <div class="stat" id="s-damaged-card" onclick="go('rma');goRMASub('incoming')" style="cursor:pointer">
       <div class="lbl">&#9888; Incoming damaged</div>
       <div class="val orange" id="s-damaged">&#8212;</div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px" id="s-damaged-sub"></div>
@@ -217,17 +256,16 @@ tbody tr:last-child td{border-bottom:none}
       </div>
       <div class="queue" id="queue"></div>
       <div class="df">
-        <input id="ref" type="text" placeholder="Order / reference # (optional)"/>
+        <input id="ref" type="text" placeholder="Case # (e.g. PPS7202)"/>
         <div style="display:flex;gap:6px">
           <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
-          <button class="btn pri" id="dbtn" onclick="guardAction(doDispatch)" disabled>Dispatch all</button>
+          <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>Dispatch all</button>
         </div>
       </div>
     </div>
     <div id="recent"></div>
   </div>
   <div class="sec" id="sec-inventory">
-    <!-- v2.5: Filter bar with location search and date filters -->
     <div class="sr">
       <input type="text" id="f-search" placeholder="Search serial, model&#8230;" oninput="sq=this.value;renderInv()" style="flex:2;min-width:160px"/>
       <input type="text" id="f-loc" placeholder="&#128205; Location (e.g. NDC3)" oninput="sloc=this.value.toUpperCase();renderInv()" style="flex:1;min-width:110px;font-family:var(--mono)"/>
@@ -237,9 +275,9 @@ tbody tr:last-child td{border-bottom:none}
         <option value="dispatched">Dispatched</option>
         <option value="rma">RMA</option>
       </select>
-      <input type="date" id="f-date-from" onchange="sdateFrom=this.value;renderInv()" title="Updated from date" style="width:140px"/>
-      <input type="date" id="f-date-to" onchange="sdateTo=this.value;renderInv()" title="Updated to date" style="width:140px"/>
-      <button class="btn sm gh" onclick="clearFilters()" title="Clear all filters">&#10005; Clear</button>
+      <input type="date" id="f-date-from" onchange="sdateFrom=this.value;renderInv()" title="Updated from" style="width:140px"/>
+      <input type="date" id="f-date-to" onchange="sdateTo=this.value;renderInv()" title="Updated to" style="width:140px"/>
+      <button class="btn sm gh" onclick="clearFilters()">&#10005; Clear</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden"><div class="tw" id="inv-tbl"></div></div>
   </div>
@@ -275,404 +313,244 @@ tbody tr:last-child td{border-bottom:none}
     <div class="card"><div id="log-wrap"></div></div>
   </div>
 </main>
+
 <div id="ai-panel">
   <div id="ai-panel-hdr">
     <span>&#10022; Warehouse AI</span>
     <button class="btn sm gh" onclick="toggleAI()" style="padding:2px 8px;font-size:11px">&#10005;</button>
   </div>
-  <div id="ai-messages"><div class="ai-msg system">Ask me anything about your inventory, or tell me what to change.</div></div>
+  <div id="ai-messages"><div class="ai-msg system">Ask me anything about your inventory.</div></div>
   <div id="ai-input-row">
     <input id="ai-input" type="text" placeholder="e.g. cuantas C300X en stock&#8230;" onkeydown="if(event.key==='Enter')sendAI()"/>
     <button class="btn pri sm" id="ai-send" onclick="sendAI()">Send</button>
   </div>
 </div>
-<!-- MODALS -->
+
+<!-- ── DISPATCH RECEIPT MODAL ───────────────────────────────── -->
+<div class="mbg" id="m-receipt">
+  <div class="modal" style="width:560px">
+    <h3 id="receipt-title">&#128196; Dispatch Receipt</h3>
+    <div class="steps" id="receipt-steps">
+      <div class="step active" id="step-ind-0"></div>
+      <div class="step" id="step-ind-1"></div>
+      <div class="step" id="step-ind-2"></div>
+      <div class="step" id="step-ind-3"></div>
+    </div>
+
+    <!-- Step 0: Type -->
+    <div id="receipt-step-0">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Select dispatch type to continue.</p>
+      <div class="dtype-grid">
+        <div class="dtype-btn bs" id="dtype-bs" onclick="selectDtype('bs')">🟢 Brigada<br><span style="font-weight:400;font-size:11px">Service team</span></div>
+        <div class="dtype-btn rg" id="dtype-rg" onclick="selectDtype('rg')">⚫ Regular<br><span style="font-weight:400;font-size:11px">Anker direct</span></div>
+        <div class="dtype-btn cn" id="dtype-cn" onclick="selectDtype('cn')">🔴 Consultor<br><span style="font-weight:400;font-size:11px">Sales consultant</span></div>
+      </div>
+      <div class="fld" id="ticket-field" style="display:none">
+        <label>Ticket # (Brigada)</label>
+        <input id="receipt-ticket" placeholder="e.g. 202431"/>
+      </div>
+      <div class="ma">
+        <button class="btn" onclick="closeM('m-receipt')">Cancel</button>
+        <button class="btn pri" onclick="receiptNext(1)">Next &#8594;</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Upload PDF -->
+    <div id="receipt-step-1" style="display:none">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Upload the DocuSign contract PDF from Zoho.</p>
+      <div class="pdf-drop" id="pdf-drop" onclick="document.getElementById('pdf-file-input').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handlePdfDrop(event)">
+        <div id="pdf-drop-text">&#128196; Click or drag PDF here</div>
+      </div>
+      <input type="file" id="pdf-file-input" accept=".pdf" style="display:none" onchange="handlePdfFile(this.files[0])"/>
+      <div class="ma">
+        <button class="btn" onclick="receiptBack(0)">&#8592; Back</button>
+        <button class="btn pri" id="pdf-next-btn" onclick="receiptNext(2)" disabled>Next &#8594;</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Signature -->
+    <div id="receipt-step-2" style="display:none">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Have the client sign in the box below (Recibido).</p>
+      <div class="sig-wrap">
+        <canvas id="sig-canvas" class="sig-canvas" width="500" height="120"></canvas>
+        <div class="sig-label">Recibido: ___________________________</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px">
+        <button class="btn sm gh" onclick="clearSig()">🗑 Clear signature</button>
+      </div>
+      <div class="ma">
+        <button class="btn" onclick="receiptBack(1)">&#8592; Back</button>
+        <button class="btn pri" id="sig-next-btn" onclick="receiptNext(3)" disabled>Generate PDF &#8594;</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Share -->
+    <div id="receipt-step-3" style="display:none">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Receipt generated and dispatch logged. Send to client:</p>
+      <div id="share-options">
+        <div class="share-grid">
+          <button class="share-btn wa" onclick="shareWhatsApp()">📱 WhatsApp</button>
+          <button class="share-btn em" onclick="shareEmail()">📧 Email</button>
+          <button class="share-btn lk" id="share-link-btn" onclick="shareLink()">🔗 Copy link (7 days)</button>
+          <button class="share-btn pr" onclick="sharePrint()">🖨 Print</button>
+        </div>
+        <div id="share-link-copied" style="display:none;text-align:center;margin-top:8px;font-size:12px;color:var(--accent)">✓ Link copied to clipboard!</div>
+        <div id="share-email-row" style="display:none;margin-top:10px">
+          <div class="fld">
+            <label>Client email</label>
+            <div style="display:flex;gap:6px">
+              <input id="share-email-input" type="email" placeholder="cliente@email.com" style="flex:1"/>
+              <button class="btn pri sm" onclick="sendEmail()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Brigada: print only -->
+      <div id="brigada-share" style="display:none">
+        <button class="share-btn pr" style="width:100%;margin-top:.5rem" onclick="sharePrint()">🖨 Print receipt</button>
+      </div>
+      <div class="ma">
+        <button class="btn pri" onclick="closeM('m-receipt');resetReceipt()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Standard modals -->
 <div class="mbg" id="m-lock"><div class="modal"><h3>&#128272; Editor access</h3><p id="lock-subtitle">Enter the password to unlock editing</p><div class="fld"><input id="lock-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitLock()"/></div><div id="lock-err"></div><div id="lock-spinner">Verifying&#8230;</div><div class="ma"><button class="btn" onclick="closeM('m-lock')">Cancel</button><button class="btn pri" onclick="submitLock()">Unlock</button></div></div></div>
-<div class="mbg" id="m-import"><div class="modal"><h3>Import inventory list</h3><div class="fld"><label>Paste list &#8212; Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838"></textarea></div><div class="fld"><label>Default model name (if not in list)</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div><p style="font-size:11px;color:var(--text3);margin-top:-6px">Duplicates skipped automatically.</p><div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div></div></div>
-<div class="mbg" id="m-add"><div class="modal"><h3>Add item</h3><div class="fld-row"><div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A17B1111"/></div></div><div class="fld"><label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="add-sn-bulk" rows="8" placeholder="Optional &#8212; paste one serial per line&#10;Leave blank to add the model without serials." oninput="updateSNCount()"></textarea><div class="hint">Optional. Serials can be added later. Duplicates are skipped automatically.</div></div><div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div><div class="ma"><button class="btn" onclick="closeM('m-add')">Cancel</button><button class="btn pri" onclick="doAdd()">Add</button></div></div></div>
+<div class="mbg" id="m-import"><div class="modal"><h3>Import inventory list</h3><div class="fld"><label>Paste list &#8212; Name TAB SKU TAB Serial, one per line</label><textarea id="import-txt" placeholder="Anker SOLIX F2600&#9;A1781111&#9;JHSY0120241123001838"></textarea></div><div class="fld"><label>Default model name</label><input id="import-sku" placeholder="e.g. Anker SOLIX F2600"/></div><div class="ma"><button class="btn" onclick="closeM('m-import')">Cancel</button><button class="btn pri" onclick="doImport()">Import</button></div></div></div>
+<div class="mbg" id="m-add"><div class="modal"><h3>Add item</h3><div class="fld-row"><div class="fld"><label>Model name</label><input id="add-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU</label><input id="add-skucode" placeholder="A17B1111"/></div></div><div class="fld"><label>Serial numbers <span id="add-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="add-sn-bulk" rows="8" placeholder="Optional &#8212; paste one serial per line" oninput="updateSNCount()"></textarea></div><div class="fld"><label>Notes (optional)</label><input id="add-notes" placeholder="e.g. received 2025-05-05"/></div><div class="ma"><button class="btn" onclick="closeM('m-add')">Cancel</button><button class="btn pri" onclick="doAdd()">Add</button></div></div></div>
 <div class="mbg" id="m-rma"><div class="modal"><h3>Log return / RMA</h3><div class="fld"><label>Serial number</label><input id="rma-sn" placeholder="Scan or type serial" style="font-family:var(--mono)"/></div><div class="fld"><label>Reason</label><select id="rma-reason" style="width:100%" onchange="updateReasonHint()"><option value="No cambio">No cambio</option><option value="Re coordinado">Re coordinado</option><option value="Cancelado">Cancelado</option><option value="Back to stock">Back to stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select><div id="reason-hint" class="reason-hint restock">&#10003; Unit will be returned to In Stock</div></div><div class="fld"><label>Notes</label><input id="rma-notes" placeholder="optional"/></div><div class="ma"><button class="btn" onclick="closeM('m-rma')">Cancel</button><button class="btn pri" onclick="doRMA()">Log return</button></div></div></div>
-<div class="mbg" id="m-rma-bulk"><div class="modal" style="width:520px"><h3>&#8697; Bulk return</h3><div class="fld"><label>Reason <span id="bulk-restock-badge" style="display:none;margin-left:6px" class="sn-counter">&#10003; returns to stock</span></label><select id="bulk-reason" style="width:100%" onchange="updateBulkReasonHint(); renderBulkPreview()"><option value="No cambio">No cambio</option><option value="Re coordinado">Re coordinado</option><option value="Cancelado">Cancelado</option><option value="Back to stock">Back to stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select><div id="bulk-reason-hint" class="reason-hint restock">&#10003; Units will be returned to In Stock</div></div><div class="fld"><label>Serial numbers <span id="bulk-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line" oninput="updateBulkCount(); renderBulkPreview()"></textarea></div><div class="fld"><label>Notes (optional, applies to all)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div><div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px;font-weight:500">Preview</div><div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div></div><div class="ma"><button class="btn" onclick="closeM('m-rma-bulk')">Cancel</button><button class="btn pri" id="bulk-submit-btn" onclick="doBulkRMA()" disabled>Log returns</button></div></div></div>
-<div class="mbg" id="m-edit"><div class="modal"><h3>Edit model</h3><p style="font-size:11px;color:var(--text3);margin-bottom:1rem">Changes apply to all serials under this model.</p><div class="fld"><label>Model name</label><input id="edit-name" placeholder="Anker SOLIX F2600"/></div><div class="fld"><label>SKU code</label><input id="edit-sku" placeholder="A1781111" style="font-family:var(--mono)"/></div><input type="hidden" id="edit-orig-name"/><div class="ma"><button class="btn" onclick="closeM('m-edit')">Cancel</button><button class="btn pri" onclick="doEdit()">Save changes</button></div></div></div>
-<div class="mbg" id="m-paste"><div class="modal"><h3>Paste multiple serials</h3><div class="fld"><label>One serial per line</label><textarea id="paste-txt" placeholder="JHSY0120241123001838&#10;JHSY0120250305000775"></textarea></div><div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div></div></div>
-<div class="mbg" id="m-incoming"><div class="modal"><h3>&#128229; Log incoming damaged unit</h3><div class="fld"><label>Serial number</label><input id="inc-serial" placeholder="Scan or type serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div><div class="fld"><label>Condition</label><select id="inc-condition" style="width:100%"><option value="Damaged">Damaged</option><option value="Defective">Defective</option><option value="Wrong item">Wrong item</option><option value="Incomplete">Incomplete</option><option value="Other">Other</option></select></div><div class="fld"><label>Customer / Order ref</label><input id="inc-ref" placeholder="e.g. Order #12345 or customer name"/></div><div class="fld"><label>Notes (optional)</label><input id="inc-notes" placeholder="e.g. cracked screen, missing cables"/></div><div class="ma"><button class="btn" onclick="closeM('m-incoming')">Cancel</button><button class="btn pri" onclick="doLogIncoming()">Log unit</button></div></div></div>
-<div class="mbg" id="m-location"><div class="modal" style="width:360px"><h3>&#128205; Update location</h3><div class="fld"><label>Serial</label><input id="loc-serial-display" readonly style="font-family:var(--mono);opacity:.6"/></div><div class="fld"><label>Location (e.g. NDC3, NDB4)</label><input id="loc-input" placeholder="NDC3" style="font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/><div class="hint">Leave blank to clear location.</div></div><div class="ma"><button class="btn" onclick="closeM('m-location')">Cancel</button><button class="btn pri" onclick="doUpdateLocation()">Save</button></div></div></div>
+<div class="mbg" id="m-rma-bulk"><div class="modal" style="width:520px"><h3>&#8697; Bulk return</h3><div class="fld"><label>Reason</label><select id="bulk-reason" style="width:100%" onchange="updateBulkReasonHint();renderBulkPreview()"><option value="No cambio">No cambio</option><option value="Re coordinado">Re coordinado</option><option value="Cancelado">Cancelado</option><option value="Back to stock">Back to stock</option><option value="Damaged">Damaged</option><option value="Other">Other</option></select><div id="bulk-reason-hint" class="reason-hint restock">&#10003; Units will be returned to In Stock</div></div><div class="fld"><label>Serial numbers <span id="bulk-sn-count" class="sn-counter" style="display:none">0</span></label><textarea id="bulk-sn-txt" rows="7" placeholder="Paste one serial per line" oninput="updateBulkCount();renderBulkPreview()"></textarea></div><div class="fld"><label>Notes (optional)</label><input id="bulk-notes" placeholder="e.g. batch return May 2026"/></div><div id="bulk-preview-wrap" style="display:none;margin-bottom:.85rem"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:6px">Preview</div><div id="bulk-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);max-height:200px;overflow-y:auto"></div></div><div class="ma"><button class="btn" onclick="closeM('m-rma-bulk')">Cancel</button><button class="btn pri" id="bulk-submit-btn" onclick="doBulkRMA()" disabled>Log returns</button></div></div></div>
+<div class="mbg" id="m-edit"><div class="modal"><h3>Edit model</h3><div class="fld"><label>Model name</label><input id="edit-name"/></div><div class="fld"><label>SKU code</label><input id="edit-sku" style="font-family:var(--mono)"/></div><input type="hidden" id="edit-orig-name"/><div class="ma"><button class="btn" onclick="closeM('m-edit')">Cancel</button><button class="btn pri" onclick="doEdit()">Save</button></div></div></div>
+<div class="mbg" id="m-paste"><div class="modal"><h3>Paste multiple serials</h3><div class="fld"><label>One serial per line</label><textarea id="paste-txt"></textarea></div><div class="ma"><button class="btn" onclick="closeM('m-paste')">Cancel</button><button class="btn pri" onclick="doPaste()">Add to queue</button></div></div></div>
+<div class="mbg" id="m-incoming"><div class="modal"><h3>&#128229; Log incoming damaged unit</h3><div class="fld"><label>Serial number</label><input id="inc-serial" style="font-family:var(--mono)" onkeydown="if(event.key==='Enter')document.getElementById('inc-ref').focus()"/></div><div class="fld"><label>Condition</label><select id="inc-condition" style="width:100%"><option value="Damaged">Damaged</option><option value="Defective">Defective</option><option value="Wrong item">Wrong item</option><option value="Incomplete">Incomplete</option><option value="Other">Other</option></select></div><div class="fld"><label>Customer / Order ref</label><input id="inc-ref"/></div><div class="fld"><label>Notes (optional)</label><input id="inc-notes"/></div><div class="ma"><button class="btn" onclick="closeM('m-incoming')">Cancel</button><button class="btn pri" onclick="doLogIncoming()">Log unit</button></div></div></div>
+<div class="mbg" id="m-location"><div class="modal" style="width:360px"><h3>&#128205; Update location</h3><div class="fld"><label>Serial</label><input id="loc-serial-display" readonly style="font-family:var(--mono);opacity:.6"/></div><div class="fld"><label>Location (e.g. NDC3, NDB4)</label><input id="loc-input" placeholder="NDC3" style="font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/><div class="hint">Leave blank to clear.</div></div><div class="ma"><button class="btn" onclick="closeM('m-location')">Cancel</button><button class="btn pri" onclick="doUpdateLocation()">Save</button></div></div></div>
 <div id="print-area" style="display:none"></div>
-<div class="mbg" id="m-shipment"><div class="modal" style="width:520px"><h3>&#128230; Create outbound shipment</h3><div class="fld-row"><div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div><div class="fld"><label>Destination (optional)</label><input id="ship-dest" placeholder="e.g. Manufacturer / UPS Hub"/></div></div><div class="fld"><label>Notes (optional)</label><input id="ship-notes" placeholder="e.g. Container #, tracking #"/></div><div class="fld"><label>Select units to include <span id="ship-sel-count" class="sel-count"></span></label><div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px"><div class="empty">Loading waiting units&#8230;</div></div></div><div class="ma"><button class="btn" onclick="closeM('m-shipment')">Cancel</button><button class="btn pri" onclick="doCreateShipment()">Create shipment</button></div></div></div>
+<div class="mbg" id="m-shipment"><div class="modal" style="width:520px"><h3>&#128230; Create outbound shipment</h3><div class="fld-row"><div class="fld"><label>Ship date</label><input id="ship-date" type="date"/></div><div class="fld"><label>Destination (optional)</label><input id="ship-dest"/></div></div><div class="fld"><label>Notes (optional)</label><input id="ship-notes"/></div><div class="fld"><label>Select units <span id="ship-sel-count" class="sel-count"></span></label><div id="ship-picker" style="max-height:260px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);margin-top:4px"><div class="empty">Loading&#8230;</div></div></div><div class="ma"><button class="btn" onclick="closeM('m-shipment')">Cancel</button><button class="btn pri" onclick="doCreateShipment()">Create shipment</button></div></div></div>
+
 <script>
 var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
-
-// v2.5: Added filter variables for location and date
-var inv = [], log = [], queue = [], sf = "", sq = "", sloc = "", sdateFrom = "", sdateTo = "", drillSku = null;
-var rmaIncoming = [], rmaShipments = [];
-var RESTOCK_REASONS = ["No cambio","Re coordinado","Cancelado","Back to stock"];
+var inv=[],log=[],queue=[],sf="",sq="",sloc="",sdateFrom="",sdateTo="",drillSku=null;
+var rmaIncoming=[],rmaShipments=[];
+var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
 
 // ── Auth ──────────────────────────────────────────────────────
-var SESSION_KEY = "wm_edit_unlocked";
-var pendingAction = null;
-function isUnlocked(){ return sessionStorage.getItem(SESSION_KEY)==="1"; }
-function setUnlocked(val){
-  if(val) sessionStorage.setItem(SESSION_KEY,"1"); else sessionStorage.removeItem(SESSION_KEY);
-  updateLockUI();
-}
-function updateLockUI(){
-  var btn=document.getElementById("lock-btn");
-  if(isUnlocked()){ btn.textContent="🔓 Editor"; btn.classList.add("unlocked"); }
-  else { btn.textContent="🔒 View only"; btn.classList.remove("unlocked"); }
-}
-function handleLockClick(){
-  if(isUnlocked()){ setUnlocked(false); sessionStorage.removeItem("wm_ai_pw"); toast("Locked — view only"); }
-  else { pendingAction=null; openLock(); }
-}
-function openLock(){
-  document.getElementById("lock-pw").value="";
-  document.getElementById("lock-err").textContent="";
-  document.getElementById("lock-spinner").style.display="none";
-  openM("m-lock");
-  setTimeout(function(){ document.getElementById("lock-pw").focus(); },100);
-}
-function guardAction(fn){ if(isUnlocked()) fn(); else { pendingAction=fn; openLock(); } }
+var SESSION_KEY="wm_edit_unlocked",pendingAction=null;
+function isUnlocked(){return sessionStorage.getItem(SESSION_KEY)==="1";}
+function setUnlocked(val){if(val)sessionStorage.setItem(SESSION_KEY,"1");else sessionStorage.removeItem(SESSION_KEY);updateLockUI();}
+function updateLockUI(){var btn=document.getElementById("lock-btn");if(isUnlocked()){btn.textContent="🔓 Editor";btn.classList.add("unlocked");}else{btn.textContent="🔒 View only";btn.classList.remove("unlocked");}}
+function handleLockClick(){if(isUnlocked()){setUnlocked(false);sessionStorage.removeItem("wm_ai_pw");toast("Locked — view only");}else{pendingAction=null;openLock();}}
+function openLock(){document.getElementById("lock-pw").value="";document.getElementById("lock-err").textContent="";document.getElementById("lock-spinner").style.display="none";openM("m-lock");setTimeout(function(){document.getElementById("lock-pw").focus();},100);}
+function guardAction(fn){if(isUnlocked())fn();else{pendingAction=fn;openLock();}}
 async function submitLock(){
-  var pw=document.getElementById("lock-pw").value;
-  if(!pw) return;
-  document.getElementById("lock-err").textContent="";
-  document.getElementById("lock-spinner").style.display="block";
-  try {
+  var pw=document.getElementById("lock-pw").value;if(!pw)return;
+  document.getElementById("lock-err").textContent="";document.getElementById("lock-spinner").style.display="block";
+  try{
     var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"auth",password:pw})});
-    var data=await res.json();
-    document.getElementById("lock-spinner").style.display="none";
-    if(data.ok){
-      setUnlocked(true); sessionStorage.setItem("wm_ai_pw", pw); closeM("m-lock"); toast("✓ Unlocked — editing enabled");
-      if(pendingAction){ var fn=pendingAction; pendingAction=null; setTimeout(fn,150); }
-    } else {
-      document.getElementById("lock-err").textContent="Wrong password — try again";
-      document.getElementById("lock-pw").value=""; document.getElementById("lock-pw").focus();
-    }
-  } catch(e){
-    document.getElementById("lock-spinner").style.display="none";
-    document.getElementById("lock-err").textContent="Connection error — try again";
-  }
+    var data=await res.json();document.getElementById("lock-spinner").style.display="none";
+    if(data.ok){setUnlocked(true);sessionStorage.setItem("wm_ai_pw",pw);closeM("m-lock");toast("✓ Unlocked");if(pendingAction){var fn=pendingAction;pendingAction=null;setTimeout(fn,150);}}
+    else{document.getElementById("lock-err").textContent="Wrong password";document.getElementById("lock-pw").value="";document.getElementById("lock-pw").focus();}
+  }catch(e){document.getElementById("lock-spinner").style.display="none";document.getElementById("lock-err").textContent="Connection error";}
 }
 
-// ── Supabase helpers ──────────────────────────────────────────
-function sbGet(table,params){
-  return fetch(SB_URL+"/rest/v1/"+table+"?"+(params||"order=updated_at.desc&limit=2000"),{headers:HEADERS}).then(function(r){return r.json();});
-}
-function sbPost(table,data){
-  return fetch(SB_URL+"/rest/v1/"+table,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(data)});
-}
-function sbPatch(table,match,data){
-  return fetch(SB_URL+"/rest/v1/"+table+"?"+match,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(data)});
-}
-function setSyncStatus(s,label){
-  document.getElementById("sync-dot").className=s;
-  document.getElementById("sync-label").textContent=label;
-}
+// ── Supabase ──────────────────────────────────────────────────
+function sbGet(t,p){return fetch(SB_URL+"/rest/v1/"+t+"?"+(p||"order=updated_at.desc&limit=2000"),{headers:HEADERS}).then(function(r){return r.json();});}
+function sbPost(t,d){return fetch(SB_URL+"/rest/v1/"+t,{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(d)});}
+function sbPatch(t,m,d){return fetch(SB_URL+"/rest/v1/"+t+"?"+m,{method:"PATCH",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify(d)});}
+function setSyncStatus(s,l){document.getElementById("sync-dot").className=s;document.getElementById("sync-label").textContent=l;}
 
-// ── Load data ─────────────────────────────────────────────────
-function fetchAllInventory(offset,accumulated){
-  offset=offset||0; accumulated=accumulated||[];
+function fetchAllInventory(offset,acc){
+  offset=offset||0;acc=acc||[];
   return fetch(SB_URL+"/rest/v1/inventory?order=sku.asc&limit=3000&offset="+offset,{headers:HEADERS})
     .then(function(r){return r.json();}).then(function(rows){
-      accumulated=accumulated.concat(rows);
-      if(rows.length===3000) return fetchAllInventory(offset+3000,accumulated);
-      return accumulated;
+      acc=acc.concat(rows);
+      if(rows.length===3000)return fetchAllInventory(offset+3000,acc);
+      return acc;
     });
 }
 function loadData(){
   setSyncStatus("syncing","loading...");
-  Promise.all([
-    fetchAllInventory(),
-    sbGet("activity_log","order=ts.desc&limit=300"),
-    sbGet("rma_incoming","order=received_at.desc&limit=500"),
-    sbGet("rma_shipments","order=shipped_at.desc&limit=100")
-  ]).then(function(results){
-    inv=results[0].map(function(r){return{serial:r.serial,sku:r.sku,skuCode:r.sku_code||"",status:r.status,ref:r.ref||"",notes:r.notes||"",location:r.location||"",updatedAt:r.updated_at};});
-    log=results[1].map(function(r){return{ts:r.ts,msg:r.msg,type:r.type||"",serial:r.serial||"",reason:r.reason||"",notes:r.notes||""};});
-    rmaIncoming=results[2];
-    rmaShipments=results[3];
-    setSyncStatus("ok",inv.length+" units");
-    render();
-  }).catch(function(e){ setSyncStatus("err","offline"); toast("Connection error — check Supabase"); console.error(e); });
+  Promise.all([fetchAllInventory(),sbGet("activity_log","order=ts.desc&limit=300"),sbGet("rma_incoming","order=received_at.desc&limit=500"),sbGet("rma_shipments","order=shipped_at.desc&limit=100")])
+  .then(function(r){
+    inv=r[0].map(function(x){return{serial:x.serial,sku:x.sku,skuCode:x.sku_code||"",status:x.status,ref:x.ref||"",notes:x.notes||"",location:x.location||"",updatedAt:x.updated_at};});
+    log=r[1].map(function(x){return{ts:x.ts,msg:x.msg,type:x.type||"",serial:x.serial||"",reason:x.reason||"",notes:x.notes||""};});
+    rmaIncoming=r[2];rmaShipments=r[3];
+    setSyncStatus("ok",inv.length+" units");render();
+  }).catch(function(e){setSyncStatus("err","offline");toast("Connection error");console.error(e);});
 }
-
-function render(){ stats(); renderInv(sq); renderRMA(); renderLog(); renderRecent(); renderIncoming(); renderShipments(); }
-
+function render(){stats();renderInv();renderRMA();renderLog();renderRecent();renderIncoming();renderShipments();}
 function stats(){
   document.getElementById("s-total").textContent=inv.length;
   document.getElementById("s-stock").textContent=inv.filter(function(i){return i.status==="in-stock";}).length;
   document.getElementById("s-disp").textContent=inv.filter(function(i){return i.status==="dispatched";}).length;
   document.getElementById("s-rma").textContent=inv.filter(function(i){return i.status==="rma";}).length;
-  var waiting=rmaIncoming.filter(function(u){return u.status==="waiting";});
-  var shipped=rmaIncoming.filter(function(u){return u.status==="shipped";}).length;
-  document.getElementById("s-damaged").textContent=waiting.length;
-  document.getElementById("s-damaged-sub").textContent=rmaIncoming.length>0?shipped+" shipped":"No units logged";
-  document.getElementById("s-damaged-card").style.borderColor=waiting.length>0?"#5a3a00":"var(--border)";
+  var w=rmaIncoming.filter(function(u){return u.status==="waiting";});
+  document.getElementById("s-damaged").textContent=w.length;
+  document.getElementById("s-damaged-sub").textContent=rmaIncoming.length>0?rmaIncoming.filter(function(u){return u.status==="shipped";}).length+" shipped":"No units logged";
+  document.getElementById("s-damaged-card").style.borderColor=w.length>0?"#5a3a00":"var(--border)";
 }
-
-// ── v2.5: Clear all filters ───────────────────────────────────
-function clearFilters(){
-  sq=""; sloc=""; sf=""; sdateFrom=""; sdateTo="";
-  document.getElementById("f-search").value="";
-  document.getElementById("f-loc").value="";
-  document.getElementById("f-status").value="";
-  document.getElementById("f-date-from").value="";
-  document.getElementById("f-date-to").value="";
-  renderInv();
-}
-
-// ── renderInv — WITH LOCATION + DATE FILTERS (v2.5) ──────────
+function clearFilters(){sq="";sloc="";sf="";sdateFrom="";sdateTo="";document.getElementById("f-search").value="";document.getElementById("f-loc").value="";document.getElementById("f-status").value="";document.getElementById("f-date-from").value="";document.getElementById("f-date-to").value="";renderInv();}
 function renderInv(q){
-  if(q!==undefined) sq=q;
+  if(q!==undefined)sq=q;
   var wrap=document.getElementById("inv-tbl");
   if(drillSku){
     var items=inv.filter(function(i){return i.sku===drillSku;});
-    if(sf) items=items.filter(function(i){return i.status===sf;});
-    if(sq) items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0||i.location.toLowerCase().indexOf(sq.toLowerCase())>=0;});
-    if(sloc) items=items.filter(function(i){return i.location.toUpperCase().indexOf(sloc)>=0;});
-    if(sdateFrom) items=items.filter(function(i){return i.updatedAt>=sdateFrom;});
-    if(sdateTo) items=items.filter(function(i){return i.updatedAt<=sdateTo+"T23:59:59";});
-    var skuCodeLabel=items.length>0&&items[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>":"";
+    if(sf)items=items.filter(function(i){return i.status===sf;});
+    if(sq)items=items.filter(function(i){return i.serial.toLowerCase().indexOf(sq.toLowerCase())>=0||i.location.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+    if(sloc)items=items.filter(function(i){return i.location.toUpperCase().indexOf(sloc)>=0;});
+    if(sdateFrom)items=items.filter(function(i){return i.updatedAt>=sdateFrom;});
+    if(sdateTo)items=items.filter(function(i){return i.updatedAt<=sdateTo+"T23:59:59";});
+    var skuLabel=items.length>0&&items[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(items[0].skuCode)+"</span>":"";
     var rows=items.map(function(i){
       var lbl=i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
-      var locBadge=i.location?"<span class='loc-badge'>&#128205; "+esc(i.location)+"</span>":"<span class='loc-badge empty'>—</span>";
-      var locBtn=i.status==="in-stock"?"<button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})' title='Update location'>&#128205;</button>":"";
-      return "<tr>"
-        +"<td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td>"
-        +"<td><span class='badge "+i.status+"'>"+lbl+"</span></td>"
-        +"<td>"+locBadge+" "+locBtn+"</td>"
-        +"<td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td>"
-        +"<td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td>"
-        +"</tr>";
+      var lb=i.location?"<span class='loc-badge'>&#128205; "+esc(i.location)+"</span>":"<span class='loc-badge empty'>—</span>";
+      var locBtn=i.status==="in-stock"?"<button class='btn sm gh' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})'>&#128205;</button>":"";
+      return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td>"+lb+" "+locBtn+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td></tr>";
     });
-    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'>"
-      +"<button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button>"
-      +"<span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuCodeLabel
-      +"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span>"
-      +"</div>"
-      +"<table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:150px'>Location</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead>"
-      +"<tbody>"+rows.join("")+"</tbody></table>";
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+items.length+" serials</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th style='width:150px'>Location</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
   var groups={};
-  inv.forEach(function(i){
-    if(!groups[i.sku]) groups[i.sku]={sku:i.sku,skuCode:i.skuCode||"",total:0,stock:0,dispatched:0,rma:0};
-    groups[i.sku].total++;
-    if(i.status==="in-stock") groups[i.sku].stock++;
-    else if(i.status==="dispatched") groups[i.sku].dispatched++;
-    else if(i.status==="rma") groups[i.sku].rma++;
-  });
+  inv.forEach(function(i){if(!groups[i.sku])groups[i.sku]={sku:i.sku,skuCode:i.skuCode||"",total:0,stock:0,dispatched:0,rma:0};groups[i.sku].total++;if(i.status==="in-stock")groups[i.sku].stock++;else if(i.status==="dispatched")groups[i.sku].dispatched++;else if(i.status==="rma")groups[i.sku].rma++;});
   var skus=Object.keys(groups);
-  if(sq) skus=skus.filter(function(k){return k.toLowerCase().indexOf(sq.toLowerCase())>=0;});
-  if(sf) skus=skus.filter(function(k){
-    if(sf==="in-stock") return groups[k].stock>0;
-    if(sf==="dispatched") return groups[k].dispatched>0;
-    if(sf==="rma") return groups[k].rma>0;
-    return true;
-  });
-  // Location and date filters apply at drill-down level
+  if(sq)skus=skus.filter(function(k){return k.toLowerCase().indexOf(sq.toLowerCase())>=0;});
+  if(sf)skus=skus.filter(function(k){if(sf==="in-stock")return groups[k].stock>0;if(sf==="dispatched")return groups[k].dispatched>0;if(sf==="rma")return groups[k].rma>0;return true;});
   if(!skus.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
-  var rows=skus.map(function(k){
-    var g=groups[k];
-    var s=g.stock>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+g.stock+"</span>":"<span style='font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text3)'>0</span>";
-    var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;font-weight:500;color:var(--text3)'>0</span>";
-    var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";
-    return "<tr data-sku='"+esc(k)+"'>"
-      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td>"
-      +"<td style='font-family:var(--mono);font-size:13px;color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td>"
-      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td>"
-      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td>"
-      +"<td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td>"
-      +"<td><button class='btn sm gh' onclick='guardAction(function(){ openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\"); })' title='Edit model'>&#9998;</button></td>"
-      +"</tr>";
-  });
-  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+skus.map(function(k){var g=groups[k];var s=g.stock>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+g.stock+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";return "<tr data-sku='"+esc(k)+"'><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td><td style='font-family:var(--mono);color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\");})'>&#9998;</button></td></tr>";}).join("")+"</tbody></table>";
 }
-
-// ── LOCATION UPDATE ───────────────────────────────────────────
-function openLocation(serial,currentLoc){
-  document.getElementById("loc-serial-display").value=serial;
-  document.getElementById("loc-input").value=currentLoc||"";
-  openM("m-location");
-  setTimeout(function(){ document.getElementById("loc-input").focus(); },100);
-}
+function openLocation(serial,loc){document.getElementById("loc-serial-display").value=serial;document.getElementById("loc-input").value=loc||"";openM("m-location");setTimeout(function(){document.getElementById("loc-input").focus();},100);}
 function doUpdateLocation(){
   var serial=document.getElementById("loc-serial-display").value;
   var loc=document.getElementById("loc-input").value.trim().toUpperCase();
-  setSyncStatus("syncing","saving...");
   sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{location:loc||null})
-  .then(function(){
-    closeM("m-location");
-    inv=inv.map(function(i){ return i.serial===serial?Object.assign({},i,{location:loc}):i; });
-    renderInv();
-    setSyncStatus("ok",inv.length+" units");
-    toast(loc?"Location set to "+loc:"Location cleared");
-  }).catch(function(){ setSyncStatus("err","save failed"); toast("Error saving — try again"); });
+  .then(function(){closeM("m-location");inv=inv.map(function(i){return i.serial===serial?Object.assign({},i,{location:loc}):i;});renderInv();toast(loc?"Location set to "+loc:"Location cleared");});
 }
-
-function renderRMA(){
-  var wrap=document.getElementById("rma-tbl");
-  var items=log.filter(function(l){return l.type==="rma";});
-  if(!items.length){wrap.innerHTML="<div class='empty'>No RMA entries yet</div>";return;}
-  var rows=items.map(function(i){return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>";});
-  wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:130px'>Reason</th><th>Notes</th><th style='width:110px'>Date</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
-}
-function renderLog(){
-  var wrap=document.getElementById("log-wrap");
-  if(!log.length){wrap.innerHTML="<div class='empty'>No activity yet</div>";return;}
-  wrap.innerHTML=log.slice(0,150).map(function(l){return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>";}).join("");
-}
-function renderRecent(){
-  var wrap=document.getElementById("recent");
-  var recent=log.filter(function(l){return l.type==="dispatch";}).slice(0,5);
-  if(!recent.length){wrap.innerHTML="";return;}
-  wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+recent.map(function(d){return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>";}).join("")+"</div>";
-}
-function renderIncoming(){
-  var wrap=document.getElementById("incoming-tbl");
-  if(!rmaIncoming.length){wrap.innerHTML="<div class='empty'>No incoming units logged yet</div>";return;}
-  var rows=rmaIncoming.map(function(u){
-    var badge=u.status==="shipped"?"<span class='badge shipped'>Shipped</span>":"<span class='badge waiting'>Waiting</span>";
-    return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.order_ref||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.notes||"")+"</td><td>"+badge+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(u.received_at)+"</td></tr>";
-  });
-  wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:110px'>Condition</th><th style='width:160px'>Order / Customer</th><th>Notes</th><th style='width:80px'>Status</th><th style='width:120px'>Received</th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
-}
-function doLogIncoming(){
-  var serial=document.getElementById("inc-serial").value.trim().toUpperCase();
-  var condition=document.getElementById("inc-condition").value;
-  var ref=document.getElementById("inc-ref").value.trim();
-  var notes=document.getElementById("inc-notes").value.trim();
-  if(!serial){toast("Serial number required");return;}
-  setSyncStatus("syncing","saving...");
-  sbPost("rma_incoming",{serial:serial,condition:condition,order_ref:ref||null,notes:notes||null,received_at:new Date().toISOString(),status:"waiting"})
-  .then(function(){
-    closeM("m-incoming");
-    document.getElementById("inc-serial").value="";
-    document.getElementById("inc-ref").value="";
-    document.getElementById("inc-notes").value="";
-    toast("✓ Incoming unit logged");
-    loadData();
-  }).catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
-}
-function renderShipments(){
-  var wrap=document.getElementById("shipments-list");
-  if(!rmaShipments.length){wrap.innerHTML="<div class='card'><div class='empty'>No shipments created yet</div></div>";return;}
-  wrap.innerHTML=rmaShipments.map(function(s){
-    var serials=[];try{ serials=JSON.parse(s.serials||"[]"); }catch(e){}
-    var dest=s.destination?"📦 "+esc(s.destination):"📦 Outbound shipment";
-    var meta=fd(s.shipped_at)+" &nbsp;·&nbsp; "+s.serial_count+" unit(s)"+(s.notes?" &nbsp;·&nbsp; "+esc(s.notes):"");
-    var sd=JSON.stringify(s).replace(/"/g,"&quot;");
-    return "<div class='shipment-card'><div class='shipment-info'><div class='shipment-title'>"+dest+"</div><div class='shipment-meta'>"+meta+"</div></div><div class='shipment-actions'><button class='btn sm gh' onclick='exportShipmentCSV("+sd+")'>Export CSV</button><button class='btn sm gh' onclick='printShipment("+sd+", false)'>🖨 Shipping list</button><button class='btn sm gh' onclick='printShipment("+sd+", true)'>🖨 Full report</button></div></div>";
-  }).join("");
-}
-function loadShipmentPicker(){
-  var picker=document.getElementById("ship-picker");
-  var waiting=rmaIncoming.filter(function(u){return u.status==="waiting";});
-  if(!waiting.length){picker.innerHTML="<div class='empty'>No units waiting — log incoming units first</div>";return;}
-  picker.innerHTML=waiting.map(function(u){
-    return "<div class='cb-row'><input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'><label for='chk-"+esc(u.id)+"'><strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong> <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span>"+(u.order_ref?" <span style='color:var(--text3);font-size:11px'>· "+esc(u.order_ref)+"</span>":"")+"</label><span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span></div>";
-  }).join("");
-  updateSelCount();
-  document.getElementById("ship-date").value=new Date().toISOString().split("T")[0];
-}
-function updateSelCount(){
-  var checked=document.querySelectorAll("#ship-picker input[type=checkbox]:checked").length;
-  document.getElementById("ship-sel-count").textContent=checked?checked+" selected":"";
-}
-async function doCreateShipment(){
-  var date=document.getElementById("ship-date").value;
-  var dest=document.getElementById("ship-dest").value.trim();
-  var notes=document.getElementById("ship-notes").value.trim();
-  var checked=Array.from(document.querySelectorAll("#ship-picker input[type=checkbox]:checked")).map(function(c){return c.value;});
-  if(!checked.length){toast("Select at least one unit");return;}
-  if(!date){toast("Select a ship date");return;}
-  var selectedUnits=rmaIncoming.filter(function(u){return checked.indexOf(u.id)>=0;});
-  var serials=selectedUnits.map(function(u){return u.serial;});
-  setSyncStatus("syncing","saving...");
-  try{
-    await fetch(SB_URL+"/rest/v1/rma_shipments",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})});
-    for(var i=0;i<checked.length;i++) await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});
-    closeM("m-shipment");
-    document.getElementById("ship-dest").value="";
-    document.getElementById("ship-notes").value="";
-    toast("✓ Shipment created — "+serials.length+" unit(s)");
-    loadData();
-  }catch(e){ setSyncStatus("err","save failed"); toast("Error saving — try again"); }
-}
-function exportShipmentCSV(shipment){
-  var serials=[];try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
-  var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];
-  serials.forEach(function(sn){
-    var unit=rmaIncoming.find(function(u){return u.serial===sn;});
-    if(unit) rows.push([unit.serial,unit.condition,unit.order_ref||"",unit.notes||"",unit.received_at?new Date(unit.received_at).toLocaleDateString():""]);
-    else rows.push([sn,"","","",""]);
-  });
-  var dest=shipment.destination||"shipment";
-  var date=shipment.shipped_at?new Date(shipment.shipped_at).toISOString().slice(0,10):new Date().toISOString().slice(0,10);
-  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-  var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="shipment_"+dest.replace(/\s+/g,"_")+"_"+date+".csv";a.click();
-  toast("CSV exported ✓");
-}
-function printShipment(shipment,fullReport){
-  var serials=[];try{ serials=JSON.parse(shipment.serials||"[]"); }catch(e){}
-  var dest=shipment.destination||"Outbound Shipment";
-  var date=shipment.shipped_at?new Date(shipment.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";
-  var notes=shipment.notes||"";
-  var tableHTML="";
-  if(fullReport){
-    var rows=serials.map(function(sn){var unit=rmaIncoming.find(function(u){return u.serial===sn;});if(unit) return "<tr><td>"+esc(unit.serial)+"</td><td>"+esc(unit.condition)+"</td><td>"+esc(unit.order_ref||"")+"</td><td>"+esc(unit.notes||"")+"</td><td>"+esc(unit.received_at?new Date(unit.received_at).toLocaleDateString():"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>";}).join("");
-    tableHTML="<table><thead><tr><th>Serial Number</th><th>Condition</th><th>Order / Customer Ref</th><th>Notes</th><th>Received</th></tr></thead><tbody>"+rows+"</tbody></table>";
-  } else {
-    var rows=serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");
-    tableHTML="<table><thead><tr><th>#</th><th>Serial Number</th></tr></thead><tbody>"+rows+"</tbody></table>";
-  }
-  var title=fullReport?"Shipment Report":"Shipping List";
-  var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><title>"+title+"</title><style>body{font-family:Arial,sans-serif;color:#000;padding:2rem;font-size:13px}h2{font-size:18px;margin-bottom:4px}.meta{font-size:12px;color:#555;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:10px}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;border-bottom:2px solid #000;padding:6px 8px;font-size:11px;text-transform:uppercase}td{padding:6px 8px;border-bottom:1px solid #ddd;font-family:monospace;font-size:12px}.footer{margin-top:2rem;font-size:11px;color:#aaa}</style></head><body><h2>Windmar &middot; Anker Warehouse &mdash; "+title+"</h2><div class='meta'><strong>Destination:</strong> "+esc(dest)+"&nbsp;&nbsp;&nbsp;<strong>Date:</strong> "+date+"&nbsp;&nbsp;&nbsp;"+(notes?"<strong>Notes:</strong> "+esc(notes)+"&nbsp;&nbsp;&nbsp;":"")+"<strong>Total units:</strong> "+serials.length+"</div>"+tableHTML+"<div class='footer'>Printed "+new Date().toLocaleString()+" &middot; Windmar Anker Warehouse</div><script>window.onload=function(){window.print();};<\/script></body></html>";
-  var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();
-}
-function goRMASub(t){
-  var subs=["returns","incoming","shipments"];
-  document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",subs[i]===t);});
-  document.querySelectorAll(".rma-subsec").forEach(function(s){s.classList.remove("active");});
-  document.getElementById("rmasub-"+t).classList.add("active");
-}
-function fd(ts){if(!ts) return "";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
+function renderRMA(){var wrap=document.getElementById("rma-tbl");var items=log.filter(function(l){return l.type==="rma";});if(!items.length){wrap.innerHTML="<div class='empty'>No RMA entries yet</div>";return;}wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:130px'>Reason</th><th>Notes</th><th style='width:110px'>Date</th></tr></thead><tbody>"+items.map(function(i){return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial||"")+"</td><td>"+esc(i.reason||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(i.notes||"")+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.ts)+"</td></tr>";}).join("")+"</tbody></table>";}
+function renderLog(){var wrap=document.getElementById("log-wrap");if(!log.length){wrap.innerHTML="<div class='empty'>No activity yet</div>";return;}wrap.innerHTML=log.slice(0,150).map(function(l){return "<div class='li'><span class='lt'>"+fd(l.ts)+"</span><span>"+esc(l.msg)+"</span></div>";}).join("");}
+function renderRecent(){var wrap=document.getElementById("recent");var r=log.filter(function(l){return l.type==="dispatch";}).slice(0,5);if(!r.length){wrap.innerHTML="";return;}wrap.innerHTML="<div class='card'><div class='card-title'>Recent dispatches</div>"+r.map(function(d){return "<div class='ri'><span class='rt'>"+fd(d.ts)+"</span><span>"+esc(d.msg)+"</span></div>";}).join("")+"</div>";}
+function renderIncoming(){var wrap=document.getElementById("incoming-tbl");if(!rmaIncoming.length){wrap.innerHTML="<div class='empty'>No incoming units logged yet</div>";return;}wrap.innerHTML="<table><thead><tr><th>Serial</th><th style='width:110px'>Condition</th><th style='width:160px'>Order / Customer</th><th>Notes</th><th style='width:80px'>Status</th><th style='width:120px'>Received</th></tr></thead><tbody>"+rmaIncoming.map(function(u){var b=u.status==="shipped"?"<span class='badge shipped'>Shipped</span>":"<span class='badge waiting'>Waiting</span>";return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.order_ref||"")+"</td><td style='color:var(--text2);font-size:12px'>"+esc(u.notes||"")+"</td><td>"+b+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(u.received_at)+"</td></tr>";}).join("")+"</tbody></table>";}
+function doLogIncoming(){var serial=document.getElementById("inc-serial").value.trim().toUpperCase();var condition=document.getElementById("inc-condition").value;var ref=document.getElementById("inc-ref").value.trim();var notes=document.getElementById("inc-notes").value.trim();if(!serial){toast("Serial required");return;}sbPost("rma_incoming",{serial:serial,condition:condition,order_ref:ref||null,notes:notes||null,received_at:new Date().toISOString(),status:"waiting"}).then(function(){closeM("m-incoming");document.getElementById("inc-serial").value="";document.getElementById("inc-ref").value="";document.getElementById("inc-notes").value="";toast("✓ Incoming unit logged");loadData();});}
+function renderShipments(){var wrap=document.getElementById("shipments-list");if(!rmaShipments.length){wrap.innerHTML="<div class='card'><div class='empty'>No shipments created yet</div></div>";return;}wrap.innerHTML=rmaShipments.map(function(s){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination?"📦 "+esc(s.destination):"📦 Outbound shipment";var meta=fd(s.shipped_at)+" &nbsp;·&nbsp; "+s.serial_count+" unit(s)"+(s.notes?" &nbsp;·&nbsp; "+esc(s.notes):"");var sd=JSON.stringify(s).replace(/"/g,"&quot;");return "<div class='shipment-card'><div class='shipment-info'><div class='shipment-title'>"+dest+"</div><div class='shipment-meta'>"+meta+"</div></div><div class='shipment-actions'><button class='btn sm gh' onclick='exportShipmentCSV("+sd+")'>Export CSV</button><button class='btn sm gh' onclick='printShipment("+sd+",false)'>🖨 List</button><button class='btn sm gh' onclick='printShipment("+sd+",true)'>🖨 Report</button></div></div>";}).join("");}
+function loadShipmentPicker(){var p=document.getElementById("ship-picker");var w=rmaIncoming.filter(function(u){return u.status==="waiting";});if(!w.length){p.innerHTML="<div class='empty'>No units waiting</div>";return;}p.innerHTML=w.map(function(u){return "<div class='cb-row'><input type='checkbox' id='chk-"+esc(u.id)+"' value='"+esc(u.id)+"' onchange='updateSelCount()'><label for='chk-"+esc(u.id)+"'><strong style='font-family:var(--mono);font-size:12px'>"+esc(u.serial)+"</strong> <span style='color:var(--text3);font-size:11px'>"+esc(u.condition)+"</span></label><span style='font-size:11px;color:var(--text3);margin-left:auto'>"+fd(u.received_at)+"</span></div>";}).join("");updateSelCount();document.getElementById("ship-date").value=new Date().toISOString().split("T")[0];}
+function updateSelCount(){var c=document.querySelectorAll("#ship-picker input[type=checkbox]:checked").length;document.getElementById("ship-sel-count").textContent=c?c+" selected":"";}
+async function doCreateShipment(){var date=document.getElementById("ship-date").value;var dest=document.getElementById("ship-dest").value.trim();var notes=document.getElementById("ship-notes").value.trim();var checked=Array.from(document.querySelectorAll("#ship-picker input[type=checkbox]:checked")).map(function(c){return c.value;});if(!checked.length){toast("Select at least one unit");return;}if(!date){toast("Select a ship date");return;}var selectedUnits=rmaIncoming.filter(function(u){return checked.indexOf(u.id)>=0;});var serials=selectedUnits.map(function(u){return u.serial;});try{await fetch(SB_URL+"/rest/v1/rma_shipments",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"return=minimal"}),body:JSON.stringify({destination:dest||null,notes:notes||null,shipped_at:new Date(date).toISOString(),serial_count:serials.length,serials:JSON.stringify(serials)})});for(var i=0;i<checked.length;i++)await sbPatch("rma_incoming","id=eq."+checked[i],{status:"shipped"});closeM("m-shipment");toast("✓ Shipment created — "+serials.length+" unit(s)");loadData();}catch(e){toast("Error saving — try again");}}
+function exportShipmentCSV(s){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];serials.forEach(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)rows.push([u.serial,u.condition,u.order_ref||"",u.notes||"",u.received_at?new Date(u.received_at).toLocaleDateString():""]);else rows.push([sn,"","","",""]);});var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="shipment_"+new Date().toISOString().slice(0,10)+".csv";a.click();toast("CSV exported ✓");}
+function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination||"Outbound";var date=s.shipped_at?new Date(s.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";var rows=full?serials.map(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)return "<tr><td>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td>"+esc(u.order_ref||"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td></tr>";}).join(""):serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;padding:2rem;font-size:13px}table{width:100%;border-collapse:collapse}th{border-bottom:2px solid #000;padding:6px;font-size:11px;text-align:left}td{padding:6px;border-bottom:1px solid #ddd}</style></head><body><h2>Windmar · Anker — "+(full?"Report":"Shipping List")+"</h2><p>"+esc(dest)+" · "+date+" · "+serials.length+" units</p>"+( full?"<table><thead><tr><th>Serial</th><th>Condition</th><th>Ref</th></tr></thead><tbody>":"<table><thead><tr><th>#</th><th>Serial</th></tr></thead><tbody>")+rows+"</tbody></table><script>window.onload=function(){window.print();};<\/script></body></html>";var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
+function goRMASub(t){var s=["returns","incoming","shipments"];document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",s[i]===t);});document.querySelectorAll(".rma-subsec").forEach(function(x){x.classList.remove("active");});document.getElementById("rmasub-"+t).classList.add("active");}
+function fd(ts){if(!ts)return"";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
-function go(t){
-  var tabs=["dispatch","inventory","rma","log"];
-  document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});
-  document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});
-  document.getElementById("sec-"+t).classList.add("active");
-  if(t==="inventory") renderInv();
-}
+function go(t){var tabs=["dispatch","inventory","rma","log"];document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});document.getElementById("sec-"+t).classList.add("active");if(t==="inventory")renderInv();}
 function setDrill(el){drillSku=el.getAttribute("data-sku");renderInv();}
-function guardRet(el){var serial=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=serial;openM("m-rma");});}
+function guardRet(el){var s=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=s;openM("m-rma");});}
 function openEdit(sku,skuCode){document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
-function doEdit(){
-  var origName=document.getElementById("edit-orig-name").value;
-  var newName=document.getElementById("edit-name").value.trim();
-  var newSku=document.getElementById("edit-sku").value.trim();
-  if(!newName&&!newSku){toast("Enter a model name or SKU");return;}
-  var displayName=newName||newSku;
-  setSyncStatus("syncing","updating...");
-  var now=new Date().toISOString();
-  Promise.all([
-    sbPatch("inventory","sku=eq."+encodeURIComponent(origName),{sku:displayName,sku_code:newSku,updated_at:now}),
-    sbPost("activity_log",{msg:"Edited model: \""+origName+"\" \u2192 \""+displayName+"\""+(newSku?" ["+newSku+"]":""),ts:now})
-  ]).then(function(){closeM("m-edit");toast("Model updated \u2713");loadData();})
-  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
-}
-function addS(){var inp=document.getElementById("si");var raw=inp.value.trim().toUpperCase();if(!raw) return;inp.value=""; procS(raw); inp.focus();}
-function procS(raw){
-  if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}
-  var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});
-  queue.push({serial:raw,item:item,found:!!item});
-  renderQ();
-}
+function doEdit(){var orig=document.getElementById("edit-orig-name").value;var name=document.getElementById("edit-name").value.trim();var sku=document.getElementById("edit-sku").value.trim();if(!name&&!sku){toast("Enter a model name or SKU");return;}var now=new Date().toISOString();Promise.all([sbPatch("inventory","sku=eq."+encodeURIComponent(orig),{sku:name||sku,sku_code:sku,updated_at:now}),sbPost("activity_log",{msg:"Edited model: "+orig+" → "+(name||sku),ts:now})]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();});}
+function addS(){var inp=document.getElementById("si");var raw=inp.value.trim().toUpperCase();if(!raw)return;inp.value="";procS(raw);inp.focus();}
+function procS(raw){if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});queue.push({serial:raw,item:item,found:!!item});renderQ();}
 function renderQ(){
-  var wrap=document.getElementById("queue");
-  var btn=document.getElementById("dbtn");
+  var wrap=document.getElementById("queue");var btn=document.getElementById("dbtn");
   if(!queue.length){wrap.innerHTML="";btn.disabled=true;return;}
   btn.disabled=!queue.some(function(q){return q.found;});
   wrap.innerHTML=queue.map(function(q,idx){
@@ -683,16 +561,13 @@ function renderQ(){
 }
 function rmQ(i){queue.splice(i,1);renderQ();}
 function clrQ(){queue=[];renderQ();}
-function doPaste(){
-  var lines=document.getElementById("paste-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  lines.forEach(procS);
-  closeM("m-paste");
-  document.getElementById("paste-txt").value="";
-}
-function doDispatch(){
+function doPaste(){var lines=document.getElementById("paste-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);lines.forEach(procS);closeM("m-paste");document.getElementById("paste-txt").value="";}
+
+// ── DISPATCH (actual save to DB) ──────────────────────────────
+function execDispatch(){
   var ref=document.getElementById("ref").value.trim();
   var td=queue.filter(function(q){return q.found;});
-  if(!td.length) return;
+  if(!td.length)return;
   setSyncStatus("syncing","saving...");
   var now=new Date().toISOString();
   var updates=td.map(function(q){return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",location:null,updated_at:now});});
@@ -700,158 +575,271 @@ function doDispatch(){
   var msg="Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
   updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
   var nf=queue.filter(function(q){return !q.found;});
-  if(nf.length) updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
+  if(nf.length)updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
   Promise.all(updates).then(function(){queue=[];document.getElementById("ref").value="";toast(td.length+" unit(s) dispatched");loadData();})
-  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
+  .catch(function(){setSyncStatus("err","save failed");toast("Error saving");});
 }
-function updateReasonHint(){
-  var reason=document.getElementById("rma-reason").value;
-  var hint=document.getElementById("reason-hint");
-  var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
-  hint.className="reason-hint "+(isRestock?"restock":"rma");
-  hint.textContent=isRestock?"\u2713 Unit will be returned to In Stock":"\u26a0 Unit will remain flagged as RMA";
+
+// ── RECEIPT FLOW ──────────────────────────────────────────────
+var _dtype=""; // bs, rg, cn
+var _pdfBytes=null;
+var _signedPdfBytes=null;
+var _sigDrawing=false;
+var _sigCtx=null;
+var _sigHasData=false;
+var _signedPdfUrl=null;
+
+function openDispatchReceipt(){
+  var ref=document.getElementById("ref").value.trim();
+  if(!ref){toast("Enter a case # first (e.g. PPS7202)");return;}
+  resetReceipt();
+  showReceiptStep(0);
+  openM("m-receipt");
 }
-function doRMA(){
-  var serial=document.getElementById("rma-sn").value.trim().toUpperCase();
-  var reason=document.getElementById("rma-reason").value;
-  var notes=document.getElementById("rma-notes").value.trim();
-  if(!serial){toast("Serial required");return;}
-  var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
-  setSyncStatus("syncing","saving...");
-  var now=new Date().toISOString();
-  var logMsg=newStatus==="in-stock"?"Returned to stock: "+serial+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+serial+" \u2014 "+reason+(notes?" ("+notes+")":"");
-  Promise.all([
-    sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),
-    sbPost("activity_log",{msg:logMsg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})
-  ]).then(function(){closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";toast(newStatus==="in-stock"?"\u2713 Unit returned to stock":"RMA logged");loadData();})
-  .catch(function(){setSyncStatus("err","save failed");});
+
+function resetReceipt(){
+  _dtype="";_pdfBytes=null;_signedPdfBytes=null;_sigHasData=false;_signedPdfUrl=null;
+  document.getElementById("pdf-drop").classList.remove("loaded");
+  document.getElementById("pdf-drop-text").textContent="📄 Click or drag PDF here";
+  document.getElementById("pdf-next-btn").disabled=true;
+  document.getElementById("receipt-ticket").value="";
+  document.getElementById("ticket-field").style.display="none";
+  document.getElementById("share-email-row").style.display="none";
+  document.getElementById("share-link-copied").style.display="none";
+  ["dtype-bs","dtype-rg","dtype-cn"].forEach(function(id){document.getElementById(id).classList.remove("sel");});
 }
-function openBulkRMA(){
-  document.getElementById("bulk-sn-txt").value="";document.getElementById("bulk-notes").value="";
-  document.getElementById("bulk-sn-count").style.display="none";document.getElementById("bulk-preview-wrap").style.display="none";
-  document.getElementById("bulk-preview").innerHTML="";document.getElementById("bulk-submit-btn").disabled=true;
-  document.getElementById("bulk-reason").value="No cambio";updateBulkReasonHint();
-  openM("m-rma-bulk");setTimeout(function(){ document.getElementById("bulk-sn-txt").focus(); },100);
-}
-function updateBulkReasonHint(){
-  var reason=document.getElementById("bulk-reason").value;
-  var hint=document.getElementById("bulk-reason-hint");
-  var isRestock=RESTOCK_REASONS.indexOf(reason)>=0;
-  hint.className="reason-hint "+(isRestock?"restock":"rma");
-  hint.textContent=isRestock?"\u2713 Units will be returned to In Stock":"\u26a0 Units will remain flagged as RMA";
-}
-function updateBulkCount(){
-  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var badge=document.getElementById("bulk-sn-count");
-  if(lines.length>0){ badge.textContent=lines.length+(lines.length===1?" serial":" serials"); badge.style.display="inline-block"; }
-  else { badge.style.display="none"; }
-}
-function renderBulkPreview(){
-  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  var wrap=document.getElementById("bulk-preview-wrap");var preview=document.getElementById("bulk-preview");var btn=document.getElementById("bulk-submit-btn");
-  if(!lines.length){ wrap.style.display="none"; btn.disabled=true; return; }
-  wrap.style.display="block";
-  var found=0, notFound=0;
-  var rows=lines.map(function(sn){
-    var item=inv.find(function(i){return i.serial.toUpperCase()===sn;});
-    if(item){ found++;return "<div class='br-row found'><span class='br-icon'>&#10003;</span><span>"+esc(sn)+"</span><span class='br-model'>"+esc(item.sku)+"</span><span class='br-status'>"+esc(item.status)+"</span></div>";}
-    else { notFound++;return "<div class='br-row nf'><span class='br-icon'>&#10007;</span><span>"+esc(sn)+"</span><span class='br-model' style='color:var(--danger)'>not found</span></div>";}
-  }).join("");
-  preview.innerHTML=rows+"<div class='br-summary'><span class='ok'>&#10003; "+found+" found</span><span class='bad'>&#10007; "+notFound+" not found</span></div>";
-  btn.disabled=found===0;btn.textContent=found>0?"Log "+found+" return"+(found===1?"":"s"):"Log returns";
-}
-async function doBulkRMA(){
-  var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  var reason=document.getElementById("bulk-reason").value;var notes=document.getElementById("bulk-notes").value.trim();
-  var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";
-  var toProcess=lines.filter(function(sn){return inv.find(function(i){return i.serial.toUpperCase()===sn;});});
-  if(!toProcess.length){toast("No valid serials to process");return;}
-  setSyncStatus("syncing","saving "+toProcess.length+"...");document.getElementById("bulk-submit-btn").disabled=true;
-  var now=new Date().toISOString();
-  try{
-    var updates=toProcess.map(function(sn){return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});});
-    var logEntries=toProcess.map(function(sn){var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":""):"RMA: "+sn+" \u2014 "+reason+(notes?" ("+notes+")":"");return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});});
-    var summary=(newStatus==="in-stock"?"Bulk return to stock":"Bulk RMA")+": "+toProcess.length+" unit(s) \u2014 "+reason+(notes?" ("+notes+")":"");
-    logEntries.push(sbPost("activity_log",{msg:summary,type:"rma",serial:"",reason:reason,notes:notes,ts:now}));
-    await Promise.all([...updates,...logEntries]);
-    closeM("m-rma-bulk");toast("\u2713 "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));loadData();
-  }catch(e){setSyncStatus("err","save failed");toast("Error saving — try again");document.getElementById("bulk-submit-btn").disabled=false;}
-}
-function doImport(){
-  var text=document.getElementById("import-txt").value;var defName=document.getElementById("import-sku").value.trim()||"Unknown";
-  if(!text.trim()){toast("Nothing to import");return;}
-  var lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var items=[],skipped=0;var existingSerials={};inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
-  lines.forEach(function(line){
-    var parts;if(line.indexOf("\t")>=0){parts=line.split("\t");}else{var sm=line.match(/^(.+?)\s{2,}(.+)$/);if(sm){parts=[sm[1],sm[2]];}else{parts=line.split(/[,;]+/);}}
-    parts=parts.map(function(p){return p.trim();}).filter(Boolean);
-    var name=defName,skuCode="",serial="";
-    if(parts.length>=3){name=parts[0];skuCode=parts[1];serial=parts[2].toUpperCase();}else if(parts.length===2){name=parts[0];serial=parts[1].toUpperCase();}else if(parts.length===1){serial=parts[0].toUpperCase();}
-    if(!serial||serial.length<5||existingSerials[serial]){skipped++;return;}
-    existingSerials[serial]=true;items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});
+
+function showReceiptStep(n){
+  [0,1,2,3].forEach(function(i){
+    document.getElementById("receipt-step-"+i).style.display=i===n?"block":"none";
+    var ind=document.getElementById("step-ind-"+i);
+    ind.className="step "+(i<n?"done":i===n?"active":"");
   });
-  if(!items.length){toast("No new items to import ("+skipped+" skipped)");return;}
-  setSyncStatus("syncing","importing "+items.length+"...");
-  var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
-  var chain=Promise.resolve();
-  batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
-  chain.then(function(){return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});})
-  .then(function(){closeM("m-import");document.getElementById("import-txt").value="";toast("Imported "+items.length+" items");loadData();})
-  .catch(function(){setSyncStatus("err","import failed");toast("Import error — try again");});
 }
-function updateSNCount(){
-  var lines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim();}).filter(Boolean);
-  var badge=document.getElementById("add-sn-count");
-  if(lines.length>0){badge.textContent=lines.length+(lines.length===1?" serial":" serials");badge.style.display="inline-block";}else{badge.style.display="none";}
+
+function selectDtype(t){
+  _dtype=t;
+  ["bs","rg","cn"].forEach(function(x){document.getElementById("dtype-"+x).classList.toggle("sel",x===t);});
+  document.getElementById("ticket-field").style.display=t==="bs"?"block":"none";
+  // Show/hide brigada-only share on step 3
 }
-function doAdd(){
-  var name=document.getElementById("add-name").value.trim();var skuCode=document.getElementById("add-skucode").value.trim();var notes=document.getElementById("add-notes").value.trim();
-  var rawLines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);
-  if(!name&&!skuCode){toast("Enter a model name or SKU");return;}
-  var displayName=name||skuCode;var now=new Date().toISOString();var existingSerials={};inv.forEach(function(i){existingSerials[i.serial.toUpperCase()]=true;});
-  if(!rawLines.length){
-    var placeholder={serial:"NO-SN-"+displayName.replace(/\s+/g,"-").toUpperCase()+"-"+Date.now(),sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now};
-    setSyncStatus("syncing","saving...");
-    fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify([placeholder])})
-    .then(function(){return sbPost("activity_log",{msg:"Added model (no serial): "+displayName+(skuCode?" ["+skuCode+"]":""),ts:now});})
-    .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast("Model added");loadData();})
-    .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});return;
+
+function receiptNext(step){
+  if(step===1&&!_dtype){toast("Select a dispatch type");return;}
+  if(step===2&&!_pdfBytes){toast("Upload a PDF first");return;}
+  if(step===3){
+    generateStampedPdf();
+    return;
   }
-  var items=[],skipped=0,seen={};
-  rawLines.forEach(function(sn){if(sn.length<5){skipped++;return;}if(existingSerials[sn]||seen[sn]){skipped++;return;}seen[sn]=true;items.push({serial:sn,sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now});});
-  if(!items.length){toast("All serials already exist or are invalid ("+skipped+" skipped)");return;}
-  setSyncStatus("syncing","saving "+items.length+"...");
-  var batches=[];for(var i=0;i<items.length;i+=500) batches.push(items.slice(i,i+500));
-  var chain=Promise.resolve();
-  batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});
-  chain.then(function(){var msg="Added "+items.length+" unit(s) \u2014 "+displayName+(skuCode?" ["+skuCode+"]":"")+(skipped?" ("+skipped+" skipped)":"");return sbPost("activity_log",{msg:msg,ts:new Date().toISOString()});})
-  .then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));loadData();})
-  .catch(function(){setSyncStatus("err","save failed");toast("Error saving — try again");});
+  showReceiptStep(step);
+  if(step===2) initSigCanvas();
 }
-function exportCSV(){
-  var rows=[["Model","SKU","Serial","Status","Location","Updated","Ref","Notes"]].concat(inv.map(function(i){return[i.sku,i.skuCode||"",i.serial,i.status,i.location||"",i.updatedAt,i.ref||"",i.notes||""];}));
-  var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
-  var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";a.click();
+
+function receiptBack(step){showReceiptStep(step);}
+
+// ── PDF upload ────────────────────────────────────────────────
+function handlePdfDrop(e){
+  e.preventDefault();document.getElementById("pdf-drop").classList.remove("dragover");
+  var file=e.dataTransfer.files[0];
+  if(file&&file.type==="application/pdf")handlePdfFile(file);
+  else toast("Please drop a PDF file");
 }
-function openM(id){document.getElementById(id).classList.add("open");if(id==="m-add") document.getElementById("add-sn-count").style.display="none";if(id==="m-rma") updateReasonHint();}
+function handlePdfFile(file){
+  if(!file||file.type!=="application/pdf"){toast("Select a PDF file");return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    _pdfBytes=new Uint8Array(e.target.result);
+    document.getElementById("pdf-drop").classList.add("loaded");
+    document.getElementById("pdf-drop-text").textContent="✓ "+file.name;
+    document.getElementById("pdf-next-btn").disabled=false;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Signature canvas ──────────────────────────────────────────
+function initSigCanvas(){
+  var canvas=document.getElementById("sig-canvas");
+  var newC=canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(newC,canvas);
+  _sigCtx=newC.getContext("2d");
+  _sigCtx.strokeStyle="#1a1a2e";_sigCtx.lineWidth=2;_sigCtx.lineCap="round";_sigCtx.lineJoin="round";
+  _sigHasData=false;
+  document.getElementById("sig-next-btn").disabled=true;
+  var drawing=false;
+  function pos(e){var r=newC.getBoundingClientRect();var sx=newC.width/r.width;var sy=newC.height/r.height;if(e.touches)return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
+  newC.addEventListener("mousedown",function(e){drawing=true;var p=pos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);});
+  newC.addEventListener("mousemove",function(e){if(!drawing)return;var p=pos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;});
+  newC.addEventListener("mouseup",function(){drawing=false;});
+  newC.addEventListener("mouseleave",function(){drawing=false;});
+  newC.addEventListener("touchstart",function(e){e.preventDefault();drawing=true;var p=pos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);},{passive:false});
+  newC.addEventListener("touchmove",function(e){e.preventDefault();if(!drawing)return;var p=pos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;},{passive:false});
+  newC.addEventListener("touchend",function(){drawing=false;});
+}
+
+function clearSig(){if(_sigCtx){var c=document.getElementById("sig-canvas");_sigCtx.clearRect(0,0,c.width,c.height);_sigHasData=false;document.getElementById("sig-next-btn").disabled=true;}}
+
+// ── Stamp PDF with pdf-lib ────────────────────────────────────
+async function generateStampedPdf(){
+  toast("Generating PDF...");
+  try{
+    var ref=document.getElementById("ref").value.trim();
+    var ticket=document.getElementById("receipt-ticket").value.trim();
+    var td=queue.filter(function(q){return q.found;});
+
+    // Color by type
+    var color=_dtype==="bs"?[0,0.55,0]:_dtype==="cn"?[0.8,0.1,0.1]:[0,0,0];
+
+    // Load PDF
+    var pdfDoc=await PDFLib.PDFDocument.load(_pdfBytes);
+    var page=pdfDoc.getPages()[0];
+    var {width,height}=page.getSize();
+    var font=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+    var fontReg=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+    var rgb=PDFLib.rgb;
+
+    // ── Top-left: Case number ──
+    page.drawText(ref,{x:36,y:height-36,size:10,font:font,color:rgb(color[0],color[1],color[2])});
+
+    // ── Top-right: Type label + ticket + serials ──
+    var rightX=width-200;
+    var ty=height-28;
+    var typeLabel=_dtype==="bs"?"Brigada de Servicio":_dtype==="cn"?"Consultor de Venta":"Regular Anker";
+    page.drawText(typeLabel,{x:rightX,y:ty,size:9,font:font,color:rgb(color[0],color[1],color[2])});
+    ty-=13;
+    if(_dtype==="bs"&&ticket){
+      page.drawText("Ticket # "+ticket,{x:rightX,y:ty,size:9,font:fontReg,color:rgb(color[0],color[1],color[2])});
+      ty-=13;
+    }
+    // List each model - serial
+    td.forEach(function(q){
+      var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","");
+      page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});
+      ty-=11;
+    });
+
+    // ── Signature on "Recibido" line ──
+    // Find approx position — bottom area of page
+    var sigY=120; // ~120pt from bottom, adjust as needed
+    var canvas=document.getElementById("sig-canvas");
+    var sigDataUrl=canvas.toDataURL("image/png");
+    var sigImageBytes=await fetch(sigDataUrl).then(function(r){return r.arrayBuffer();});
+    var sigImage=await pdfDoc.embedPng(sigImageBytes);
+    page.drawImage(sigImage,{x:100,y:sigY,width:160,height:30});
+
+    // Save
+    var pdfBytesOut=await pdfDoc.save();
+    _signedPdfBytes=pdfBytesOut;
+
+    // Execute dispatch in DB
+    execDispatch();
+
+    // Show share step
+    showReceiptStep(3);
+    if(_dtype==="bs"){
+      document.getElementById("share-options").style.display="none";
+      document.getElementById("brigada-share").style.display="block";
+    } else {
+      document.getElementById("share-options").style.display="block";
+      document.getElementById("brigada-share").style.display="none";
+    }
+
+    toast("✓ Receipt ready");
+  }catch(e){
+    console.error(e);
+    toast("PDF error — dispatching without receipt");
+    execDispatch();
+    closeM("m-receipt");
+  }
+}
+
+function getPdfBlob(){return new Blob([_signedPdfBytes],{type:"application/pdf"});}
+function getPdfUrl(){if(!_signedPdfBytes)return null;return URL.createObjectURL(getPdfBlob());}
+
+function shareWhatsApp(){
+  var url=getPdfUrl();
+  if(!url){toast("PDF not ready");return;}
+  // WhatsApp can't directly attach files via URL scheme, so download first
+  var a=document.createElement("a");a.href=url;
+  var ref=document.getElementById("ref").value.trim()||"recibo";
+  a.download="recibo_"+ref+".pdf";a.click();
+  setTimeout(function(){window.open("https://wa.me/?text=Recibo+de+entrega+"+encodeURIComponent(ref),"_blank");},500);
+  toast("PDF downloaded — share via WhatsApp");
+}
+
+function shareEmail(){
+  var row=document.getElementById("share-email-row");
+  row.style.display=row.style.display==="none"?"block":"none";
+}
+
+function sendEmail(){
+  var email=document.getElementById("share-email-input").value.trim();
+  if(!email){toast("Enter an email address");return;}
+  var url=getPdfUrl();
+  var a=document.createElement("a");a.href=url;
+  var ref=document.getElementById("ref").value.trim()||"recibo";
+  a.download="recibo_"+ref+".pdf";a.click();
+  setTimeout(function(){window.location.href="mailto:"+email+"?subject=Recibo+de+entrega+"+encodeURIComponent(ref)+"&body=Adjunto+recibo+de+entrega.+Favor+descargar+el+PDF+adjunto.";},500);
+  toast("PDF downloaded — email client opened");
+}
+
+async function shareLink(){
+  if(!_signedPdfBytes){toast("PDF not ready");return;}
+  var ref=document.getElementById("ref").value.trim()||"recibo";
+  var fileName="recibos/"+ref+"_"+Date.now()+".pdf";
+  toast("Uploading...");
+  try{
+    var res=await fetch(SB_URL+"/storage/v1/object/almacen-recibos/"+fileName,{
+      method:"POST",
+      headers:{"Content-Type":"application/pdf","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},
+      body:_signedPdfBytes
+    });
+    if(!res.ok)throw new Error("Upload failed: "+res.status);
+    // Get signed URL (7 days = 604800 seconds)
+    var signRes=await fetch(SB_URL+"/storage/v1/object/sign/almacen-recibos/"+fileName,{
+      method:"POST",
+      headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},
+      body:JSON.stringify({expiresIn:604800})
+    });
+    var signData=await signRes.json();
+    var signedUrl=SB_URL+"/storage/v1"+signData.signedURL;
+    await navigator.clipboard.writeText(signedUrl);
+    document.getElementById("share-link-copied").style.display="block";
+    toast("✓ Link copied! Expires in 7 days");
+  }catch(e){
+    console.error(e);
+    // Fallback: just download
+    var a=document.createElement("a");a.href=getPdfUrl();a.download="recibo_"+ref+".pdf";a.click();
+    toast("Could not upload — PDF downloaded instead");
+  }
+}
+
+function sharePrint(){
+  if(!_signedPdfBytes){toast("PDF not ready");return;}
+  var url=getPdfUrl();
+  var w=window.open(url,"_blank");
+  setTimeout(function(){w.print();},1000);
+}
+
+// ── Standard operations ───────────────────────────────────────
+function updateReasonHint(){var r=document.getElementById("rma-reason").value;var h=document.getElementById("reason-hint");var re=RESTOCK_REASONS.indexOf(r)>=0;h.className="reason-hint "+(re?"restock":"rma");h.textContent=re?"\u2713 Unit will be returned to In Stock":"\u26a0 Unit will remain flagged as RMA";}
+function doRMA(){var serial=document.getElementById("rma-sn").value.trim().toUpperCase();var reason=document.getElementById("rma-reason").value;var notes=document.getElementById("rma-notes").value.trim();if(!serial){toast("Serial required");return;}var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";var now=new Date().toISOString();var msg=newStatus==="in-stock"?"Returned to stock: "+serial+" — "+reason+(notes?" ("+notes+")":""):"RMA: "+serial+" — "+reason+(notes?" ("+notes+")":"");Promise.all([sbPatch("inventory","serial=eq."+encodeURIComponent(serial),{status:newStatus,updated_at:now}),sbPost("activity_log",{msg:msg,type:"rma",serial:serial,reason:reason,notes:notes,ts:now})]).then(function(){closeM("m-rma");document.getElementById("rma-sn").value="";document.getElementById("rma-notes").value="";toast(newStatus==="in-stock"?"✓ Unit returned to stock":"RMA logged");loadData();});}
+function openBulkRMA(){document.getElementById("bulk-sn-txt").value="";document.getElementById("bulk-notes").value="";document.getElementById("bulk-sn-count").style.display="none";document.getElementById("bulk-preview-wrap").style.display="none";document.getElementById("bulk-preview").innerHTML="";document.getElementById("bulk-submit-btn").disabled=true;document.getElementById("bulk-reason").value="No cambio";updateBulkReasonHint();openM("m-rma-bulk");setTimeout(function(){document.getElementById("bulk-sn-txt").focus();},100);}
+function updateBulkReasonHint(){var r=document.getElementById("bulk-reason").value;var h=document.getElementById("bulk-reason-hint");var re=RESTOCK_REASONS.indexOf(r)>=0;h.className="reason-hint "+(re?"restock":"rma");h.textContent=re?"\u2713 Units will be returned to In Stock":"\u26a0 Units will remain flagged as RMA";}
+function updateBulkCount(){var l=document.getElementById("bulk-sn-txt").value.split("\n").map(function(x){return x.trim();}).filter(Boolean);var b=document.getElementById("bulk-sn-count");if(l.length){b.textContent=l.length+(l.length===1?" serial":" serials");b.style.display="inline-block";}else b.style.display="none";}
+function renderBulkPreview(){var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);var wrap=document.getElementById("bulk-preview-wrap");var preview=document.getElementById("bulk-preview");var btn=document.getElementById("bulk-submit-btn");if(!lines.length){wrap.style.display="none";btn.disabled=true;return;}wrap.style.display="block";var found=0,nf=0;var rows=lines.map(function(sn){var item=inv.find(function(i){return i.serial.toUpperCase()===sn;});if(item){found++;return "<div class='br-row found'><span class='br-icon'>&#10003;</span><span>"+esc(sn)+"</span><span class='br-model'>"+esc(item.sku)+"</span><span class='br-status'>"+esc(item.status)+"</span></div>";}else{nf++;return "<div class='br-row nf'><span class='br-icon'>&#10007;</span><span>"+esc(sn)+"</span><span class='br-model' style='color:var(--danger)'>not found</span></div>";}}).join("");preview.innerHTML=rows+"<div class='br-summary'><span class='ok'>&#10003; "+found+" found</span><span class='bad'>&#10007; "+nf+" not found</span></div>";btn.disabled=found===0;btn.textContent=found>0?"Log "+found+" return"+(found===1?"":"s"):"Log returns";}
+async function doBulkRMA(){var lines=document.getElementById("bulk-sn-txt").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);var reason=document.getElementById("bulk-reason").value;var notes=document.getElementById("bulk-notes").value.trim();var newStatus=RESTOCK_REASONS.indexOf(reason)>=0?"in-stock":"rma";var toProcess=lines.filter(function(sn){return inv.find(function(i){return i.serial.toUpperCase()===sn;});});if(!toProcess.length){toast("No valid serials");return;}document.getElementById("bulk-submit-btn").disabled=true;var now=new Date().toISOString();try{await Promise.all([...toProcess.map(function(sn){return sbPatch("inventory","serial=eq."+encodeURIComponent(sn),{status:newStatus,updated_at:now});}), ...toProcess.map(function(sn){var msg=newStatus==="in-stock"?"Returned to stock: "+sn+" — "+reason:(("RMA: "+sn+" — "+reason));return sbPost("activity_log",{msg:msg,type:"rma",serial:sn,reason:reason,notes:notes,ts:now});}),sbPost("activity_log",{msg:(newStatus==="in-stock"?"Bulk return":"Bulk RMA")+": "+toProcess.length+" — "+reason,type:"rma",ts:now})]);closeM("m-rma-bulk");toast("\u2713 "+toProcess.length+" unit"+(toProcess.length===1?"":"s")+(newStatus==="in-stock"?" returned to stock":" logged as RMA"));loadData();}catch(e){toast("Error saving");document.getElementById("bulk-submit-btn").disabled=false;}}
+function doImport(){var text=document.getElementById("import-txt").value;var defName=document.getElementById("import-sku").value.trim()||"Unknown";if(!text.trim()){toast("Nothing to import");return;}var lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(function(l){return l.trim();}).filter(Boolean);var items=[],skipped=0;var existing={};inv.forEach(function(i){existing[i.serial.toUpperCase()]=true;});lines.forEach(function(line){var parts;if(line.indexOf("\t")>=0){parts=line.split("\t");}else{var sm=line.match(/^(.+?)\s{2,}(.+)$/);if(sm){parts=[sm[1],sm[2]];}else{parts=line.split(/[,;]+/);}}parts=parts.map(function(p){return p.trim();}).filter(Boolean);var name=defName,skuCode="",serial="";if(parts.length>=3){name=parts[0];skuCode=parts[1];serial=parts[2].toUpperCase();}else if(parts.length===2){name=parts[0];serial=parts[1].toUpperCase();}else if(parts.length===1){serial=parts[0].toUpperCase();}if(!serial||serial.length<5||existing[serial]){skipped++;return;}existing[serial]=true;items.push({serial:serial,sku:name,sku_code:skuCode,status:"in-stock",updated_at:new Date().toISOString()});});if(!items.length){toast("No new items ("+skipped+" skipped)");return;}var batches=[];for(var i=0;i<items.length;i+=500)batches.push(items.slice(i,i+500));var chain=Promise.resolve();batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});chain.then(function(){return sbPost("activity_log",{msg:"Imported "+items.length+" items ("+skipped+" skipped)",ts:new Date().toISOString()});}).then(function(){closeM("m-import");document.getElementById("import-txt").value="";toast("Imported "+items.length+" items");loadData();});}
+function updateSNCount(){var l=document.getElementById("add-sn-bulk").value.split("\n").map(function(x){return x.trim();}).filter(Boolean);var b=document.getElementById("add-sn-count");if(l.length){b.textContent=l.length+(l.length===1?" serial":" serials");b.style.display="inline-block";}else b.style.display="none";}
+function doAdd(){var name=document.getElementById("add-name").value.trim();var skuCode=document.getElementById("add-skucode").value.trim();var notes=document.getElementById("add-notes").value.trim();var rawLines=document.getElementById("add-sn-bulk").value.split("\n").map(function(l){return l.trim().toUpperCase();}).filter(Boolean);if(!name&&!skuCode){toast("Enter a model name or SKU");return;}var displayName=name||skuCode;var now=new Date().toISOString();var existing={};inv.forEach(function(i){existing[i.serial.toUpperCase()]=true;});if(!rawLines.length){var ph={serial:"NO-SN-"+displayName.replace(/\s+/g,"-").toUpperCase()+"-"+Date.now(),sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now};fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify([ph])}).then(function(){return sbPost("activity_log",{msg:"Added model: "+displayName,ts:now});}).then(function(){closeM("m-add");toast("Model added");loadData();});return;}var items=[],skipped=0,seen={};rawLines.forEach(function(sn){if(sn.length<5){skipped++;return;}if(existing[sn]||seen[sn]){skipped++;return;}seen[sn]=true;items.push({serial:sn,sku:displayName,sku_code:skuCode,status:"in-stock",notes:notes,updated_at:now});});if(!items.length){toast("All serials already exist ("+skipped+" skipped)");return;}var batches=[];for(var i=0;i<items.length;i+=500)batches.push(items.slice(i,i+500));var chain=Promise.resolve();batches.forEach(function(batch){chain=chain.then(function(){return fetch(SB_URL+"/rest/v1/inventory",{method:"POST",headers:Object.assign({},HEADERS,{"Prefer":"resolution=ignore-duplicates,return=minimal"}),body:JSON.stringify(batch)});});});chain.then(function(){return sbPost("activity_log",{msg:"Added "+items.length+" unit(s) — "+displayName+(skipped?" ("+skipped+" skipped)":""),ts:new Date().toISOString()});}).then(function(){closeM("m-add");document.getElementById("add-name").value="";document.getElementById("add-skucode").value="";document.getElementById("add-sn-bulk").value="";document.getElementById("add-notes").value="";document.getElementById("add-sn-count").style.display="none";toast(items.length+" unit(s) added"+(skipped?" ("+skipped+" skipped)":""));loadData();});}
+function exportCSV(){var rows=[["Model","SKU","Serial","Status","Location","Updated","Ref","Notes"]].concat(inv.map(function(i){return[i.sku,i.skuCode||"",i.serial,i.status,i.location||"",i.updatedAt,i.ref||"",i.notes||""];}));var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="windmar_inventory_"+new Date().toISOString().slice(0,10)+".csv";a.click();}
+function openM(id){document.getElementById(id).classList.add("open");if(id==="m-add")document.getElementById("add-sn-count").style.display="none";if(id==="m-rma")updateReasonHint();}
 function closeM(id){document.getElementById(id).classList.remove("open");}
 window.addEventListener("click",function(e){if(e.target.classList.contains("mbg")&&e.target.id!=="m-lock")e.target.classList.remove("open");});
 var tt;
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";clearTimeout(tt);tt=setTimeout(function(){t.style.opacity="0";},2500);}
 var aiHistory=[];
-function toggleAI(){var panel=document.getElementById("ai-panel");panel.classList.toggle("open");if(panel.classList.contains("open")) document.getElementById("ai-input").focus();}
-async function sendAI(){
-  var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg) return;
-  appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;
-  var thinking=appendAIMsg("Thinking\u2026","system");
-  try{
-    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});
-    var data=await res.json();thinking.remove();
-    if(data.error){appendAIMsg("Error: "+data.error,"system");}
-    else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20) aiHistory=aiHistory.slice(-20);if(data.commandCount>0) setTimeout(loadData,800);}
-  }catch(e){thinking.remove();appendAIMsg("Connection error \u2014 try again","system");}
-  document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();
-}
+function toggleAI(){var p=document.getElementById("ai-panel");p.classList.toggle("open");if(p.classList.contains("open"))document.getElementById("ai-input").focus();}
+async function sendAI(){var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg)return;appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;var t=appendAIMsg("Thinking…","system");try{var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});var data=await res.json();t.remove();if(data.error){appendAIMsg("Error: "+data.error,"system");}else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);if(data.commandCount>0)setTimeout(loadData,800);}}catch(e){t.remove();appendAIMsg("Connection error","system");}document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();}
 function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 updateLockUI();
 loadData();
