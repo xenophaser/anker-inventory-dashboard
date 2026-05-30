@@ -5,7 +5,7 @@
   Author     : Sergio A. Romero
   D.B.A.     : Baracutey
   Built with : Personal Supabase account & API keys
-  Version    : 2.7
+  Version    : 2.8
   Updated    : May 2026
 
   Description:
@@ -247,7 +247,6 @@ tbody tr:last-child td{border-bottom:none}
 .assign-bar{display:flex;align-items:center;gap:8px;padding-top:8px}
 .assign-bar select{flex:1;font-size:12px;padding:6px 10px}
 .assign-bar label{font-size:11px;color:var(--text3);white-space:nowrap}
-#m-pin .modal{width:340px;text-align:center}
 </style>
 </head>
 <body>
@@ -280,19 +279,23 @@ tbody tr:last-child td{border-bottom:none}
     </div>
   </div>
 </div>
+
 <div id="driver-view"></div>
 <div id="toast"></div>
+
 <header class="hdr">
   <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
   <div class="hdr-btns">
     <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
-    <div id="user-badge" class="user-badge" style="display:none" onclick="openM('m-pin')">👤 <span id="user-badge-name"></span></div><button id="lock-btn" class="lock-badge" onclick="handleLockClick()">&#128274; View only</button>
-    <button class="lock-badge" onclick="toggleAI()" id="ai-btn">&#10022; AI</button>
+    <div id="user-badge" class="user-badge" style="display:none" onclick="openM('m-pin')">👤 <span id="user-badge-name"></span></div>
+    <button id="lock-btn" class="lock-badge" onclick="handleLockClick()">&#128274; View only</button>
+    <button class="lock-badge" onclick="toggleAI()" id="ai-btn" style="display:none">&#10022; AI</button>
     <button id="btn-add" class="btn sm gh" onclick="guardAction(function(){ openM('m-add'); })">+ Add item</button>
     <button id="btn-import" class="btn sm gh" onclick="guardAction(function(){ openM('m-import'); })">Import list</button>
     <button class="btn sm pri" onclick="exportCSV()">Export CSV</button>
   </div>
 </header>
+
 <main class="main">
   <div class="stats">
     <div class="stat"><div class="lbl">Total units</div><div class="val" id="s-total">&#8212;</div></div>
@@ -321,7 +324,11 @@ tbody tr:last-child td{border-bottom:none}
       </div>
       <div class="queue" id="queue"></div>
       <div class="df">
-        <input id="ref" type="text" placeholder="Case # (e.g. PPS7202)"/><div class="assign-bar" id="assign-bar" style="display:none"><label>Assign to</label><select id="assign-driver"><option value="">— No assign (self) —</option></select></div>
+        <input id="ref" type="text" placeholder="Case # (e.g. PPS7202)"/>
+        <div class="assign-bar" id="assign-bar" style="display:none">
+          <label>Assign to</label>
+          <select id="assign-driver"><option value="">— No assign (self) —</option></select>
+        </div>
         <div style="display:flex;gap:6px">
           <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
           <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>Dispatch all</button>
@@ -379,6 +386,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </main>
 
+<!-- ── AI Panel ── -->
 <div id="ai-panel">
   <div id="ai-panel-hdr">
     <span>&#10022; Warehouse AI</span>
@@ -391,7 +399,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ── DISPATCH RECEIPT MODAL ───────────────────────────────── -->
+<!-- ── DISPATCH RECEIPT MODAL ── -->
 <div class="mbg" id="m-receipt">
   <div class="modal" style="width:560px">
     <h3 id="receipt-title">&#128196; Dispatch Receipt</h3>
@@ -401,7 +409,6 @@ tbody tr:last-child td{border-bottom:none}
       <div class="step" id="step-ind-2"></div>
       <div class="step" id="step-ind-3"></div>
     </div>
-
     <!-- Step 0: Type -->
     <div id="receipt-step-0">
       <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Select dispatch type to continue.</p>
@@ -419,7 +426,6 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn pri" onclick="receiptNext(1)">Next &#8594;</button>
       </div>
     </div>
-
     <!-- Step 1: Upload PDF -->
     <div id="receipt-step-1" style="display:none">
       <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Upload the DocuSign contract PDF from Zoho.</p>
@@ -432,7 +438,6 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn pri" id="pdf-next-btn" onclick="receiptNext(2)" disabled>Next &#8594;</button>
       </div>
     </div>
-
     <!-- Step 2: Signature -->
     <div id="receipt-step-2" style="display:none">
       <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Have the client sign in the box below (Recibido).</p>
@@ -448,7 +453,6 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn pri" id="sig-next-btn" onclick="receiptNext(3)" disabled>Generate PDF &#8594;</button>
       </div>
     </div>
-
     <!-- Step 3: Share -->
     <div id="receipt-step-3" style="display:none">
       <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Receipt generated and dispatch logged. Send to client:</p>
@@ -470,7 +474,6 @@ tbody tr:last-child td{border-bottom:none}
           </div>
         </div>
       </div>
-      <!-- Brigada: print only -->
       <div id="brigada-share" style="display:none">
         <button class="share-btn pr" style="width:100%;margin-top:.5rem" onclick="sharePrint()">🖨 Print receipt</button>
       </div>
@@ -478,6 +481,31 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn pri" onclick="closeM('m-receipt');resetReceipt()">Done</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── PIN / Account Modal (FIX: was empty) ── -->
+<div class="mbg" id="m-pin">
+  <div class="modal" style="width:380px">
+    <h3>👤 Account</h3>
+    <div style="margin-bottom:1.25rem">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:.75rem;font-weight:600">Change my PIN</div>
+      <div class="fld"><label>Current PIN</label><input id="pin-current" type="password" inputmode="numeric" maxlength="6" placeholder="Current PIN" style="font-family:var(--mono);letter-spacing:.1em"/></div>
+      <div class="fld"><label>New PIN</label><input id="pin-new" type="password" inputmode="numeric" maxlength="6" placeholder="New PIN" style="font-family:var(--mono);letter-spacing:.1em"/></div>
+      <div class="fld"><label>Confirm new PIN</label><input id="pin-confirm" type="password" inputmode="numeric" maxlength="6" placeholder="Confirm PIN" style="font-family:var(--mono);letter-spacing:.1em"/></div>
+      <div id="pin-change-err" style="font-size:12px;color:var(--danger);min-height:18px;margin-bottom:.5rem"></div>
+      <button class="btn pri" style="width:100%" onclick="doChangePin()">Update PIN</button>
+    </div>
+    <!-- Admin-only section — hidden by default, shown after login if admin -->
+    <div id="admin-pin-section" style="display:none;border-top:1px solid var(--border);padding-top:1rem">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:.75rem;font-weight:600">⚙ Reset user PIN (Admin)</div>
+      <div class="fld"><label>User</label><select id="pin-reset-user" style="width:100%"></select></div>
+      <div class="fld"><label>New PIN for user</label><input id="pin-reset-new" type="password" inputmode="numeric" maxlength="6" placeholder="New PIN" style="font-family:var(--mono);letter-spacing:.1em"/></div>
+      <div class="fld"><label>Your admin PIN (confirm)</label><input id="pin-reset-admin" type="password" inputmode="numeric" maxlength="6" placeholder="Your PIN" style="font-family:var(--mono);letter-spacing:.1em"/></div>
+      <div id="pin-reset-err" style="font-size:12px;color:var(--danger);min-height:18px;margin-bottom:.5rem"></div>
+      <button class="btn dan" style="width:100%" onclick="doAdminResetPin()">Reset user PIN</button>
+    </div>
+    <div class="ma"><button class="btn" onclick="closeM('m-pin')">Close</button></div>
   </div>
 </div>
 
@@ -648,11 +676,9 @@ function execDispatch(){
 }
 
 // ── RECEIPT FLOW ──────────────────────────────────────────────
-var _dtype=""; // bs, rg, cn
+var _dtype="";
 var _pdfBytes=null;
 var _signedPdfBytes=null;
-var _sigDrawing=false;
-var _sigCtx=null;
 var _sigHasData=false;
 var _signedPdfUrl=null;
 
@@ -688,23 +714,18 @@ function selectDtype(t){
   _dtype=t;
   ["bs","rg","cn"].forEach(function(x){document.getElementById("dtype-"+x).classList.toggle("sel",x===t);});
   document.getElementById("ticket-field").style.display=t==="bs"?"block":"none";
-  // Show/hide brigada-only share on step 3
 }
 
 function receiptNext(step){
   if(step===1&&!_dtype){toast("Select a dispatch type");return;}
   if(step===2&&!_pdfBytes){toast("Upload a PDF first");return;}
-  if(step===3){
-    generateStampedPdf();
-    return;
-  }
+  if(step===3){generateStampedPdf();return;}
   showReceiptStep(step);
-  if(step===2) initSigCanvas();
+  if(step===2)initSigCanvas();
 }
 
 function receiptBack(step){showReceiptStep(step);}
 
-// ── PDF upload ────────────────────────────────────────────────
 function handlePdfDrop(e){
   e.preventDefault();document.getElementById("pdf-drop").classList.remove("dragover");
   var file=e.dataTransfer.files[0];
@@ -723,93 +744,65 @@ function handlePdfFile(file){
   reader.readAsArrayBuffer(file);
 }
 
-// ── Signature canvas ──────────────────────────────────────────
 function initSigCanvas(){
   var canvas=document.getElementById("sig-canvas");
   var newC=canvas.cloneNode(true);
   canvas.parentNode.replaceChild(newC,canvas);
-  _sigCtx=newC.getContext("2d");
-  _sigCtx.strokeStyle="#1a1a2e";_sigCtx.lineWidth=2;_sigCtx.lineCap="round";_sigCtx.lineJoin="round";
+  var ctx=newC.getContext("2d");
+  ctx.strokeStyle="#1a1a2e";ctx.lineWidth=2;ctx.lineCap="round";ctx.lineJoin="round";
   _sigHasData=false;
   document.getElementById("sig-next-btn").disabled=true;
   var drawing=false;
   function pos(e){var r=newC.getBoundingClientRect();var sx=newC.width/r.width;var sy=newC.height/r.height;if(e.touches)return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy};return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};}
-  newC.addEventListener("mousedown",function(e){drawing=true;var p=pos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);});
-  newC.addEventListener("mousemove",function(e){if(!drawing)return;var p=pos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;});
+  newC.addEventListener("mousedown",function(e){drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+  newC.addEventListener("mousemove",function(e){if(!drawing)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;});
   newC.addEventListener("mouseup",function(){drawing=false;});
   newC.addEventListener("mouseleave",function(){drawing=false;});
-  newC.addEventListener("touchstart",function(e){e.preventDefault();drawing=true;var p=pos(e);_sigCtx.beginPath();_sigCtx.moveTo(p.x,p.y);},{passive:false});
-  newC.addEventListener("touchmove",function(e){e.preventDefault();if(!drawing)return;var p=pos(e);_sigCtx.lineTo(p.x,p.y);_sigCtx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;},{passive:false});
+  newC.addEventListener("touchstart",function(e){e.preventDefault();drawing=true;var p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+  newC.addEventListener("touchmove",function(e){e.preventDefault();if(!drawing)return;var p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();_sigHasData=true;document.getElementById("sig-next-btn").disabled=false;},{passive:false});
   newC.addEventListener("touchend",function(){drawing=false;});
 }
 
-function clearSig(){if(_sigCtx){var c=document.getElementById("sig-canvas");_sigCtx.clearRect(0,0,c.width,c.height);_sigHasData=false;document.getElementById("sig-next-btn").disabled=true;}}
+function clearSig(){
+  var canvas=document.getElementById("sig-canvas");
+  var ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  _sigHasData=false;
+  document.getElementById("sig-next-btn").disabled=true;
+}
 
-// ── Stamp PDF with pdf-lib ────────────────────────────────────
 async function generateStampedPdf(){
   toast("Generating PDF...");
   try{
     var ref=document.getElementById("ref").value.trim();
     var ticket=document.getElementById("receipt-ticket").value.trim();
     var td=queue.filter(function(q){return q.found;});
-
-    // Color by type
     var color=_dtype==="bs"?[0,0.55,0]:_dtype==="cn"?[0.8,0.1,0.1]:[0,0,0];
-
-    // Load PDF
     var pdfDoc=await PDFLib.PDFDocument.load(_pdfBytes);
     var page=pdfDoc.getPages()[0];
-    var {width,height}=page.getSize();
+    var sz=page.getSize();var width=sz.width;var height=sz.height;
     var font=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
     var fontReg=await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     var rgb=PDFLib.rgb;
-
-    // ── Top-left: Case number ──
     page.drawText(ref,{x:36,y:height-36,size:10,font:font,color:rgb(color[0],color[1],color[2])});
-
-    // ── Top-right: Type label + ticket + serials ──
-    var rightX=width-200;
-    var ty=height-28;
+    var rightX=width-200;var ty=height-28;
     var typeLabel=_dtype==="bs"?"Brigada de Servicio":_dtype==="cn"?"Consultor de Venta":"Regular Anker";
     page.drawText(typeLabel,{x:rightX,y:ty,size:9,font:font,color:rgb(color[0],color[1],color[2])});
     ty-=13;
-    if(_dtype==="bs"&&ticket){
-      page.drawText("Ticket # "+ticket,{x:rightX,y:ty,size:9,font:fontReg,color:rgb(color[0],color[1],color[2])});
-      ty-=13;
-    }
-    // List each model - serial
-    td.forEach(function(q){
-      var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","");
-      page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});
-      ty-=11;
-    });
-
-    // ── Signature on "Recibido" line ──
-    // Find approx position — bottom area of page
-    var sigY=120; // ~120pt from bottom, adjust as needed
+    if(_dtype==="bs"&&ticket){page.drawText("Ticket # "+ticket,{x:rightX,y:ty,size:9,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=13;}
+    td.forEach(function(q){var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","");page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=11;});
+    var sigY=120;
     var canvas=document.getElementById("sig-canvas");
     var sigDataUrl=canvas.toDataURL("image/png");
     var sigImageBytes=await fetch(sigDataUrl).then(function(r){return r.arrayBuffer();});
     var sigImage=await pdfDoc.embedPng(sigImageBytes);
     page.drawImage(sigImage,{x:100,y:sigY,width:160,height:30});
-
-    // Save
     var pdfBytesOut=await pdfDoc.save();
     _signedPdfBytes=pdfBytesOut;
-
-    // Execute dispatch in DB
     execDispatch();
-
-    // Show share step
     showReceiptStep(3);
-    if(_dtype==="bs"){
-      document.getElementById("share-options").style.display="none";
-      document.getElementById("brigada-share").style.display="block";
-    } else {
-      document.getElementById("share-options").style.display="block";
-      document.getElementById("brigada-share").style.display="none";
-    }
-
+    if(_dtype==="bs"){document.getElementById("share-options").style.display="none";document.getElementById("brigada-share").style.display="block";}
+    else{document.getElementById("share-options").style.display="block";document.getElementById("brigada-share").style.display="none";}
     toast("✓ Receipt ready");
   }catch(e){
     console.error(e);
@@ -823,9 +816,7 @@ function getPdfBlob(){return new Blob([_signedPdfBytes],{type:"application/pdf"}
 function getPdfUrl(){if(!_signedPdfBytes)return null;return URL.createObjectURL(getPdfBlob());}
 
 function shareWhatsApp(){
-  var url=getPdfUrl();
-  if(!url){toast("PDF not ready");return;}
-  // WhatsApp can't directly attach files via URL scheme, so download first
+  var url=getPdfUrl();if(!url){toast("PDF not ready");return;}
   var a=document.createElement("a");a.href=url;
   var ref=document.getElementById("ref").value.trim()||"recibo";
   a.download="recibo_"+ref+".pdf";a.click();
@@ -855,18 +846,9 @@ async function shareLink(){
   var fileName="recibos/"+ref+"_"+Date.now()+".pdf";
   toast("Uploading...");
   try{
-    var res=await fetch(SB_URL+"/storage/v1/object/almacen-recibos/"+fileName,{
-      method:"POST",
-      headers:{"Content-Type":"application/pdf","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},
-      body:_signedPdfBytes
-    });
+    var res=await fetch(SB_URL+"/storage/v1/object/almacen-recibos/"+fileName,{method:"POST",headers:{"Content-Type":"application/pdf","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},body:_signedPdfBytes});
     if(!res.ok)throw new Error("Upload failed: "+res.status);
-    // Get signed URL (7 days = 604800 seconds)
-    var signRes=await fetch(SB_URL+"/storage/v1/object/sign/almacen-recibos/"+fileName,{
-      method:"POST",
-      headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},
-      body:JSON.stringify({expiresIn:604800})
-    });
+    var signRes=await fetch(SB_URL+"/storage/v1/object/sign/almacen-recibos/"+fileName,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY},body:JSON.stringify({expiresIn:604800})});
     var signData=await signRes.json();
     var signedUrl=SB_URL+"/storage/v1"+signData.signedURL;
     await navigator.clipboard.writeText(signedUrl);
@@ -874,8 +856,7 @@ async function shareLink(){
     toast("✓ Link copied! Expires in 7 days");
   }catch(e){
     console.error(e);
-    // Fallback: just download
-    var a=document.createElement("a");a.href=getPdfUrl();a.download="recibo_"+ref+".pdf";a.click();
+    var a=document.createElement("a");a.href=getPdfUrl();a.download="recibo_"+(document.getElementById("ref").value.trim()||"recibo")+".pdf";a.click();
     toast("Could not upload — PDF downloaded instead");
   }
 }
@@ -904,9 +885,40 @@ function closeM(id){document.getElementById(id).classList.remove("open");}
 window.addEventListener("click",function(e){if(e.target.classList.contains("mbg")&&e.target.id!=="m-lock")e.target.classList.remove("open");});
 var tt;
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.style.opacity="1";clearTimeout(tt);tt=setTimeout(function(){t.style.opacity="0";},2500);}
+
+// ── AI ────────────────────────────────────────────────────────
 var aiHistory=[];
 function toggleAI(){var p=document.getElementById("ai-panel");p.classList.toggle("open");if(p.classList.contains("open"))document.getElementById("ai-input").focus();}
-async function sendAI(){var input=document.getElementById("ai-input");var msg=input.value.trim();if(!msg)return;appendAIMsg(msg,"user");input.value="";document.getElementById("ai-send").disabled=true;var t=appendAIMsg("Thinking…","system");try{var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"chat",message:msg,history:aiHistory,password:sessionStorage.getItem("wm_ai_pw")||""})});var data=await res.json();t.remove();if(data.error){appendAIMsg("Error: "+data.error,"system");}else{var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";appendAIMsg(reply,"assistant");aiHistory.push({role:"user",content:msg});aiHistory.push({role:"assistant",content:reply});if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);if(data.commandCount>0)setTimeout(loadData,800);}}catch(e){t.remove();appendAIMsg("Connection error","system");}document.getElementById("ai-send").disabled=false;document.getElementById("ai-input").focus();}
+async function sendAI(){
+  var input=document.getElementById("ai-input");
+  var msg=input.value.trim();if(!msg)return;
+  appendAIMsg(msg,"user");input.value="";
+  document.getElementById("ai-send").disabled=true;
+  var t=appendAIMsg("Thinking…","system");
+  try{
+    // FIX: send userId and userRole so auth.js validates the session correctly
+    var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      action:"chat",
+      message:msg,
+      history:aiHistory,
+      password:sessionStorage.getItem("wm_ai_pw")||"",
+      userId:currentUser?currentUser.id:null,
+      userRole:currentUser?currentUser.role:null
+    })});
+    var data=await res.json();t.remove();
+    if(data.error){appendAIMsg("Error: "+data.error,"system");}
+    else{
+      var reply=(typeof data.reply==="string"&&data.reply.trim())?data.reply:"Done.";
+      appendAIMsg(reply,"assistant");
+      aiHistory.push({role:"user",content:msg});
+      aiHistory.push({role:"assistant",content:reply});
+      if(aiHistory.length>20)aiHistory=aiHistory.slice(-20);
+      if(data.commandCount>0)setTimeout(loadData,800);
+    }
+  }catch(e){t.remove();appendAIMsg("Connection error","system");}
+  document.getElementById("ai-send").disabled=false;
+  document.getElementById("ai-input").focus();
+}
 function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 
 // ── USER SYSTEM ───────────────────────────────────────────────
@@ -950,13 +962,16 @@ async function initLogin() {
     var grid = document.getElementById("user-grid");
     grid.innerHTML = allUsers.map(function(u) {
       var initials = u.display_name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().slice(0,2);
-      var cls = u.role === "admin" || u.role === "dispatcher" ? "admin-btn" : "driver-btn";
+      var cls = (u.role === "admin" || u.role === "dispatcher") ? "admin-btn" : "driver-btn";
       return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='window.selectUser(\""+u.username+"\")'>"
         +"<div class='user-avatar'>"+initials+"</div>"
         +"<div class='user-name'>"+u.display_name+"</div>"
         +"</div>";
     }).join("");
-  } catch(e) { console.error("Could not load users:", e); }
+  } catch(e) {
+    console.error("Could not load users:", e);
+    document.getElementById("login-err").textContent = "Error loading users — check connection";
+  }
 }
 
 async function submitLogin() {
@@ -979,38 +994,52 @@ async function submitLogin() {
 }
 
 function onLoginSuccess() {
+  // Show user badge in header
   document.getElementById("user-badge").style.display = "inline-flex";
   document.getElementById("user-badge-name").textContent = currentUser.display_name;
   sessionStorage.setItem("wm_current_user_id", currentUser.id);
   sessionStorage.setItem("wm_current_user_role", currentUser.role);
 
   if (currentUser.role === "driver") {
+    // Driver gets their own simplified view
     document.querySelector("main.main").style.display = "none";
     document.getElementById("lock-btn").style.display = "none";
     document.getElementById("ai-btn").style.display = "none";
     document.getElementById("driver-view").style.display = "block";
     loadDriverDeliveries();
   } else {
+    // Admin and dispatcher get full app
     document.querySelector("main.main").style.display = "block";
     document.getElementById("lock-btn").style.display = "inline-flex";
-    // Admin and dispatcher get AI; only admin/sergio gets it
-    if (currentUser.role === "admin") {
-      document.getElementById("ai-btn").style.display = "inline-flex";
-    } else {
-      document.getElementById("ai-btn").style.display = "none";
-    }
+
+    // Only admin gets AI
+    document.getElementById("ai-btn").style.display =
+      currentUser.role === "admin" ? "inline-flex" : "none";
+
+    // Unlock editor for logged-in users
     setUnlocked(true);
+
+    // Populate driver assign dropdown
     document.getElementById("assign-bar").style.display = "flex";
     var drivers = allUsers.filter(function(u){ return u.role === "driver"; });
     var sel = document.getElementById("assign-driver");
     sel.innerHTML = "<option value=''>— No assign (self) —</option>" +
       drivers.map(function(u){ return "<option value='"+u.id+"'>"+u.display_name+"</option>"; }).join("");
+
+    // Show admin PIN reset section if admin — FIX: safe guard
     if (currentUser.role === "admin") {
-      document.getElementById("admin-pin-section").style.display = "block";
+      var adminSec = document.getElementById("admin-pin-section");
+      if (adminSec) adminSec.style.display = "block";
       var pinSel = document.getElementById("pin-reset-user");
-      pinSel.innerHTML = allUsers.filter(function(u){ return u.id !== currentUser.id; })
-        .map(function(u){ return "<option value='"+u.id+"'>"+u.display_name+" ("+u.role+")</option>"; }).join("");
+      if (pinSel) {
+        pinSel.innerHTML = allUsers
+          .filter(function(u){ return u.id !== currentUser.id; })
+          .map(function(u){ return "<option value='"+u.id+"'>"+u.display_name+" ("+u.role+")</option>"; })
+          .join("");
+      }
     }
+
+    // Load all data
     loadData();
   }
 }
@@ -1026,10 +1055,15 @@ async function loadDriverDeliveries() {
     if (!dispatches.length) { dw.innerHTML = "<div class='empty'>No hay entregas asignadas para hoy</div>"; return; }
     dw.innerHTML = dispatches.map(function(d) {
       var serials = []; try { serials = JSON.parse(d.serials); } catch(e) {}
-      var btn = d.status !== "signed" ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert(\"Firma pendiente\")'>✍ Capturar firma</button>" : "";
-      return "<div class='delivery-card'><div class='dc-case'>"+d.case_ref+"</div><div class='dc-serials'>"+serials.join("<br>")+"</div><span class='dc-status "+(d.status === "signed" ? "signed" : "pending")+"'>"+(d.status === "signed" ? "✓ Firmado" : "Pendiente")+"</span>"+btn+"</div>";
+      var btn = d.status !== "signed"
+        ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert(\"Firma pendiente — próximamente\")'>✍ Capturar firma</button>"
+        : "";
+      return "<div class='delivery-card'><div class='dc-case'>"+esc(d.case_ref)+"</div><div class='dc-serials'>"+serials.map(esc).join("<br>")+"</div><span class='dc-status "+(d.status === "signed" ? "signed" : "pending")+"'>"+(d.status === "signed" ? "✓ Firmado" : "Pendiente")+"</span>"+btn+"</div>";
     }).join("");
-  } catch(e) { document.getElementById("driver-deliveries").innerHTML = "<div class='empty'>Error cargando entregas</div>"; }
+  } catch(e) {
+    var dw2 = document.getElementById("driver-deliveries");
+    if (dw2) dw2.innerHTML = "<div class='empty'>Error cargando entregas</div>";
+  }
 }
 
 async function doChangePin() {
@@ -1040,10 +1074,18 @@ async function doChangePin() {
   if (!current || !newPin) { err.textContent = "Fill in all fields"; return; }
   if (newPin !== confirm) { err.textContent = "PINs do not match"; return; }
   if (newPin.length < 4) { err.textContent = "PIN must be at least 4 digits"; return; }
-  var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"change_pin", userId:currentUser.id, currentPin:current, newPin:newPin})});
-  var data = await r.json();
-  if (data.ok) { closeM("m-pin"); err.textContent = ""; toast("✓ PIN updated"); }
-  else { err.textContent = data.error || "Error"; }
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"change_pin", userId:currentUser.id, currentPin:current, newPin:newPin})});
+    var data = await r.json();
+    if (data.ok) {
+      closeM("m-pin");
+      document.getElementById("pin-current").value="";
+      document.getElementById("pin-new").value="";
+      document.getElementById("pin-confirm").value="";
+      err.textContent = "";
+      toast("✓ PIN updated");
+    } else { err.textContent = data.error || "Error"; }
+  } catch(e) { err.textContent = "Connection error"; }
 }
 
 async function doAdminResetPin() {
@@ -1052,16 +1094,21 @@ async function doAdminResetPin() {
   var adminPin = document.getElementById("pin-reset-admin").value;
   var err = document.getElementById("pin-reset-err");
   if (!targetId || !newPin || !adminPin) { err.textContent = "Fill in all fields"; return; }
-  var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"admin_reset_pin", adminId:currentUser.id, adminPin:adminPin, targetUserId:parseInt(targetId), newPin:newPin})});
-  var data = await r.json();
-  if (data.ok) { document.getElementById("pin-reset-new").value=""; document.getElementById("pin-reset-admin").value=""; err.textContent=""; toast("✓ User PIN reset"); }
-  else { err.textContent = data.error || "Error"; }
+  try {
+    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"admin_reset_pin", adminId:currentUser.id, adminPin:adminPin, targetUserId:parseInt(targetId), newPin:newPin})});
+    var data = await r.json();
+    if (data.ok) {
+      document.getElementById("pin-reset-new").value="";
+      document.getElementById("pin-reset-admin").value="";
+      err.textContent="";
+      toast("✓ User PIN reset");
+    } else { err.textContent = data.error || "Error"; }
+  } catch(e) { err.textContent = "Connection error"; }
 }
 
-// Initialize
+// ── Initialize ────────────────────────────────────────────────
 updateLockUI();
 initLogin();
-
 </script>
 </body>
 </html>
