@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // ── Get users list (admin only) ────────────────────────────
+  // ── Get users list ─────────────────────────────────────────
   if (action === 'get_users') {
     const r = await fetch(`${SB_URL}/rest/v1/users?select=id,username,display_name,role,active&order=id.asc`, { headers: SB_HEADERS });
     const users = await r.json();
@@ -70,7 +70,15 @@ export default async function handler(req, res) {
     const r = await fetch(`${SB_URL}/rest/v1/dispatches`, {
       method: 'POST',
       headers: { ...SB_HEADERS, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ case_ref: caseRef, dispatch_type: dispatchType, ticket_num: ticketNum || null, serials: JSON.stringify(serials), assigned_to: assignedTo || null, dispatched_by: dispatchedBy, status: assignedTo ? 'pending' : 'delivered' })
+      body: JSON.stringify({
+        case_ref: caseRef,
+        dispatch_type: dispatchType,
+        ticket_num: ticketNum || null,
+        serials: JSON.stringify(serials),
+        assigned_to: assignedTo || null,
+        dispatched_by: dispatchedBy,
+        status: assignedTo ? 'pending' : 'delivered'
+      })
     });
     const data = await r.json();
     return res.status(200).json({ ok: true, dispatch: data[0] });
@@ -119,10 +127,10 @@ export default async function handler(req, res) {
 
   // ── Chat (AI) ──────────────────────────────────────────────
   if (action === 'chat') {
-    // Accept either old EDIT_PASSWORD or valid admin/dispatcher session
+    // FIX: accept either legacy password OR valid user session (admin/dispatcher)
     const correct = process.env.EDIT_PASSWORD;
     const validLegacy = correct && password === correct;
-    const validUser = userId && ['admin','dispatcher'].includes(req.body.userRole);
+    const validUser = req.body.userId && ['admin', 'dispatcher'].includes(req.body.userRole);
     if (!validLegacy && !validUser) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -161,7 +169,8 @@ export default async function handler(req, res) {
 
     async function tool_get_serial({ serial }) {
       const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
-      const rows = await r.json(); return rows[0] || null;
+      const rows = await r.json();
+      return rows[0] || null;
     }
 
     async function tool_dispatch_unit({ serial, ref }) {
@@ -244,7 +253,10 @@ Always use exact_total_in_database for counts. Respond in the user's language (S
       });
       const aiData = await aiRes.json();
       messages.push({ role: 'assistant', content: aiData.content });
-      if (aiData.stop_reason === 'end_turn') { finalReply = aiData.content.find(b => b.type === 'text')?.text || 'Done.'; break; }
+      if (aiData.stop_reason === 'end_turn') {
+        finalReply = aiData.content.find(b => b.type === 'text')?.text || 'Done.';
+        break;
+      }
       if (aiData.stop_reason === 'tool_use') {
         const toolResults = [];
         for (const block of aiData.content) {
@@ -254,12 +266,12 @@ Always use exact_total_in_database for counts. Respond in the user's language (S
           try {
             switch (block.name) {
               case 'get_inventory_summary': result = await tool_get_inventory_summary(); break;
-              case 'get_inventory': result = await tool_get_inventory(block.input); break;
-              case 'get_serial': result = await tool_get_serial(block.input); break;
-              case 'dispatch_unit': result = await tool_dispatch_unit(block.input); break;
-              case 'log_return': result = await tool_log_return(block.input); break;
-              case 'update_location': result = await tool_update_location(block.input); break;
-              case 'get_activity_log': result = await tool_get_activity_log(block.input); break;
+              case 'get_inventory':         result = await tool_get_inventory(block.input); break;
+              case 'get_serial':            result = await tool_get_serial(block.input); break;
+              case 'dispatch_unit':         result = await tool_dispatch_unit(block.input); break;
+              case 'log_return':            result = await tool_log_return(block.input); break;
+              case 'update_location':       result = await tool_update_location(block.input); break;
+              case 'get_activity_log':      result = await tool_get_activity_log(block.input); break;
               default: result = { error: `Unknown tool: ${block.name}` };
             }
           } catch (e) { result = { error: e.message }; }
@@ -268,7 +280,8 @@ Always use exact_total_in_database for counts. Respond in the user's language (S
         messages.push({ role: 'user', content: toolResults });
         continue;
       }
-      finalReply = 'Unexpected response.'; break;
+      finalReply = 'Unexpected response.';
+      break;
     }
     return res.status(200).json({ reply: finalReply || 'Done.', commandCount });
   }
