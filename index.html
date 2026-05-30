@@ -1254,7 +1254,7 @@ window.pinBack = pinBack;
 window.pinClear = pinClear;
 window.selectUser = selectUser;
 updateLockUI();
-setTimeout(initLogin, 100);
+window.addEventListener('load', function(){ setTimeout(initLogin, 50); });
 
 </body>
 </html>
