@@ -1026,7 +1026,7 @@ async function loadDriverDeliveries() {
     if (!dispatches.length) { dw.innerHTML = "<div class='empty'>No hay entregas asignadas para hoy</div>"; return; }
     dw.innerHTML = dispatches.map(function(d) {
       var serials = []; try { serials = JSON.parse(d.serials); } catch(e) {}
-      var btn = d.status !== "signed" ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert("Firma pendiente de implementar")'>✍ Capturar firma</button>" : "";
+      var btn = d.status !== "signed" ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert(\"Firma pendiente\")'>✍ Capturar firma</button>" : "";
       return "<div class='delivery-card'><div class='dc-case'>"+d.case_ref+"</div><div class='dc-serials'>"+serials.join("<br>")+"</div><span class='dc-status "+(d.status === "signed" ? "signed" : "pending")+"'>"+(d.status === "signed" ? "✓ Firmado" : "Pendiente")+"</span>"+btn+"</div>";
     }).join("");
   } catch(e) { document.getElementById("driver-deliveries").innerHTML = "<div class='empty'>Error cargando entregas</div>"; }
