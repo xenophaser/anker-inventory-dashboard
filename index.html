@@ -331,8 +331,8 @@ tbody tr:last-child td{border-bottom:none}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
-          <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>Dispatch all</button>
-        </div>
+<button class="btn" id="dbtn-now" onclick="guardAction(execDispatch)" disabled>⚡ Dispatch now</button>
+<button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>📄 Dispatch + Receipt</button>        </div>
       </div>
     </div>
     <div id="recent"></div>
@@ -647,7 +647,7 @@ function procS(raw){if(queue.find(function(q){return q.serial===raw;})){toast("A
 function renderQ(){
   var wrap=document.getElementById("queue");var btn=document.getElementById("dbtn");
   if(!queue.length){wrap.innerHTML="";btn.disabled=true;return;}
-  btn.disabled=!queue.some(function(q){return q.found;});
+  btn.disabled=!queue.some(function(q){return q.found;});var btnNow=document.getElementById("dbtn-now");if(btnNow)btnNow.disabled=!queue.some(function(q){return q.found;});
   wrap.innerHTML=queue.map(function(q,idx){
     var st=q.found&&q.item.status!=="in-stock"?"<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>":"";
     var loc=q.found&&q.item.location?"<span style='margin-left:8px;font-size:11px;color:#7aabdd'>&#128205;"+esc(q.item.location)+"</span>":"";
@@ -790,7 +790,7 @@ async function generateStampedPdf(){
     page.drawText(typeLabel,{x:rightX,y:ty,size:9,font:font,color:rgb(color[0],color[1],color[2])});
     ty-=13;
     if(_dtype==="bs"&&ticket){page.drawText("Ticket # "+ticket,{x:rightX,y:ty,size:9,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=13;}
-    td.forEach(function(q){var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","");page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=11;});
+    td.forEach(function(q){var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=11;});
     var sigY=120;
     var canvas=document.getElementById("sig-canvas");
     var sigDataUrl=canvas.toDataURL("image/png");
