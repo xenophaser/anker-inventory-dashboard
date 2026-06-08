@@ -689,7 +689,8 @@ function openEditQty(skuCode, currentQty){
   if(isNaN(newQty)||newQty<0){toast("Invalid quantity");return;}
   sbPatch("inventory","serial=eq."+encodeURIComponent(item.serial),{quantity:newQty,updated_at:new Date().toISOString()})
   .then(function(){toast("✓ Quantity updated to "+newQty);loadData();});
-}document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
+}
+function openEdit(sku,skuCode){document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
 function doEdit(){var orig=document.getElementById("edit-orig-name").value;var name=document.getElementById("edit-name").value.trim();var sku=document.getElementById("edit-sku").value.trim();if(!name&&!sku){toast("Enter a model name or SKU");return;}var now=new Date().toISOString();Promise.all([sbPatch("inventory","sku=eq."+encodeURIComponent(orig),{sku:name||sku,sku_code:sku,updated_at:now}),sbPost("activity_log",{msg:"Edited model: "+orig+" → "+(name||sku),ts:now})]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();});}
 function addS(){var inp=document.getElementById("si");var raw=inp.value.trim().toUpperCase();if(!raw)return;inp.value="";procS(raw);inp.focus();}
 function procS(raw){if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});queue.push({serial:raw,item:item,found:!!item});renderQ();}
