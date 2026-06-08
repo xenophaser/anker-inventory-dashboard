@@ -318,6 +318,11 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn" onclick="guardAction(addS)">Add</button>
         <button class="btn" onclick="guardAction(function(){ openM('m-paste'); })">Paste list</button>
       </div>
+      <!-- Artículos sin serial -->
+      <div id="no-serial-bar" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r)">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">+ Add accessory (no serial)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="no-serial-btns"></div>
+      </div>
       <div class="queue" id="queue"></div>
       <div class="df">
         <input id="ref" type="text" placeholder="Case # (e.g. PPS7202)"/>
@@ -548,6 +553,10 @@ var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization"
 var inv=[],log=[],queue=[],sf="",sq="",sloc="",sdateFrom="",sdateTo="",drillSku=null;
 var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
+// ── Artículos sin serial — manejados por cantidad ─────────────
+var NO_SERIAL_SKUS=['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111'];
+function isNoSerial(skuCode){return NO_SERIAL_SKUS.indexOf(skuCode)>=0;}
+var noSerialItems=[];
 
 // ── Auth ──────────────────────────────────────────────────────
 var SESSION_KEY="wm_edit_unlocked",pendingAction=null;
@@ -587,16 +596,21 @@ function loadData(){
   setSyncStatus("syncing","loading...");
   Promise.all([fetchAllInventory(),sbGet("activity_log","order=ts.desc&limit=300"),sbGet("rma_incoming","order=received_at.desc&limit=500"),sbGet("rma_shipments","order=shipped_at.desc&limit=100")])
   .then(function(r){
-    inv=r[0].map(function(x){return{serial:x.serial,sku:x.sku,skuCode:x.sku_code||"",status:x.status,ref:x.ref||"",notes:x.notes||"",location:x.location||"",updatedAt:x.updated_at};});
+    var allRows=r[0];
+    // Separar artículos sin serial
+    noSerialItems=allRows.filter(function(x){return isNoSerial(x.sku_code||"");}).map(function(x){return{serial:x.serial,sku:x.sku,skuCode:x.sku_code||"",status:x.status,quantity:x.quantity||0,location:x.location||"",updatedAt:x.updated_at};});
+    // Artículos con serial (excluir los QTY-)
+    inv=allRows.filter(function(x){return !isNoSerial(x.sku_code||"");}).map(function(x){return{serial:x.serial,sku:x.sku,skuCode:x.sku_code||"",status:x.status,ref:x.ref||"",notes:x.notes||"",location:x.location||"",updatedAt:x.updated_at};});
     log=r[1].map(function(x){return{ts:x.ts,msg:x.msg,type:x.type||"",serial:x.serial||"",reason:x.reason||"",notes:x.notes||""};});
     rmaIncoming=r[2];rmaShipments=r[3];
-    setSyncStatus("ok",inv.length+" units");render();
+    setSyncStatus("ok",(inv.length+noSerialItems.reduce(function(a,i){return a+i.quantity;},0))+" units");render();
   }).catch(function(e){setSyncStatus("err","offline");toast("Connection error");console.error(e);});
 }
-function render(){stats();renderInv();renderRMA();renderLog();renderRecent();renderIncoming();renderShipments();}
+function render(){stats();renderInv();renderRMA();renderLog();renderRecent();renderIncoming();renderShipments();renderNoSerialBtns();}
 function stats(){
-  document.getElementById("s-total").textContent=inv.length;
-  document.getElementById("s-stock").textContent=inv.filter(function(i){return i.status==="in-stock";}).length;
+  var nsTotal=noSerialItems.reduce(function(a,i){return a+i.quantity;},0);
+  document.getElementById("s-total").textContent=inv.length+nsTotal;
+  document.getElementById("s-stock").textContent=inv.filter(function(i){return i.status==="in-stock";}).length+nsTotal;
   document.getElementById("s-disp").textContent=inv.filter(function(i){return i.status==="dispatched";}).length;
   document.getElementById("s-rma").textContent=inv.filter(function(i){return i.status==="rma";}).length;
   var w=rmaIncoming.filter(function(u){return u.status==="waiting";});
@@ -630,8 +644,16 @@ function renderInv(q){
   var skus=Object.keys(groups);
   if(sq)skus=skus.filter(function(k){return k.toLowerCase().indexOf(sq.toLowerCase())>=0;});
   if(sf)skus=skus.filter(function(k){if(sf==="in-stock")return groups[k].stock>0;if(sf==="dispatched")return groups[k].dispatched>0;if(sf==="rma")return groups[k].rma>0;return true;});
-  if(!skus.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
-  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+skus.map(function(k){var g=groups[k];var s=g.stock>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+g.stock+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";return "<tr data-sku='"+esc(k)+"'><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td><td style='font-family:var(--mono);color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\");})'>&#9998;</button></td></tr>";}).join("")+"</tbody></table>";
+  if(!skus.length&&!noSerialItems.length){wrap.innerHTML="<div class='empty'>No items found</div>";return;}
+  var nsRows=noSerialItems.filter(function(i){
+    if(sq&&i.sku.toLowerCase().indexOf(sq.toLowerCase())<0)return false;
+    if(sf&&sf!=="in-stock")return false;
+    return true;
+  }).map(function(i){
+    var qtyBadge="<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+i.quantity+"</span>";
+    return "<tr data-sku='"+esc(i.sku)+"'><td><span style='font-weight:600;font-size:14px'>"+esc(i.sku)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(i.skuCode)+"</span></td><td style='font-family:var(--mono);color:var(--text3)'>"+i.quantity+"</td><td>"+qtyBadge+"</td><td><span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>—</span></td><td><span style='color:var(--text3)'>—</span></td><td><button class='btn sm gh' onclick='guardAction(function(){openEditQty(\""+esc(i.skuCode)+"\","+i.quantity+");})'>✏</button></td></tr>";
+  }).join("");
+  wrap.innerHTML="<table><thead><tr><th>Model</th><th style='width:70px'>Total</th><th style='width:120px'>In stock</th><th style='width:120px'>Dispatched</th><th style='width:70px'>RMA</th><th style='width:40px'></th></tr></thead><tbody>"+skus.map(function(k){var g=groups[k];var s=g.stock>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)'>"+g.stock+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var d=g.dispatched>0?"<span style='font-family:var(--mono);font-size:22px;font-weight:700;color:var(--danger)'>"+g.dispatched+"</span>":"<span style='font-family:var(--mono);font-size:22px;color:var(--text3)'>0</span>";var r=g.rma>0?"<span class='badge rma'>"+g.rma+"</span>":"<span style='color:var(--text3)'>0</span>";return "<tr data-sku='"+esc(k)+"'><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'><span style='font-weight:600;font-size:14px'>"+esc(k)+"</span><br><span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(g.skuCode)+"</span></td><td style='font-family:var(--mono);color:var(--text3);cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+g.total+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+s+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+d+"</td><td style='cursor:pointer' onclick='setDrill(this.closest(\"tr\"))'>"+r+"</td><td><button class='btn sm gh' onclick='guardAction(function(){openEdit(\""+esc(k)+"\",\""+esc(g.skuCode)+"\");})'>&#9998;</button></td></tr>";}).join("")+nsRows+"</tbody></table>";
 }
 function openLocation(serial,loc){document.getElementById("loc-serial-display").value=serial;document.getElementById("loc-input").value=loc||"";openM("m-location");setTimeout(function(){document.getElementById("loc-input").focus();},100);}
 function doUpdateLocation(){
@@ -658,19 +680,65 @@ function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").repl
 function go(t){var tabs=["dispatch","inventory","rma","log"];document.querySelectorAll(".tab").forEach(function(b,i){b.classList.toggle("active",tabs[i]===t);});document.querySelectorAll(".sec").forEach(function(s){s.classList.remove("active");});document.getElementById("sec-"+t).classList.add("active");if(t==="inventory")renderInv();}
 function setDrill(el){drillSku=el.getAttribute("data-sku");renderInv();}
 function guardRet(el){var s=el.getAttribute("data-serial");guardAction(function(){document.getElementById("rma-sn").value=s;openM("m-rma");});}
-function openEdit(sku,skuCode){document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
+function openEditQty(skuCode, currentQty){
+  var item=noSerialItems.find(function(i){return i.skuCode===skuCode;});
+  if(!item)return;
+  var newQty=prompt(item.sku+"\nCurrent quantity: "+currentQty+"\n\nEnter new quantity:",currentQty);
+  if(newQty===null)return;
+  newQty=parseInt(newQty);
+  if(isNaN(newQty)||newQty<0){toast("Invalid quantity");return;}
+  sbPatch("inventory","serial=eq."+encodeURIComponent(item.serial),{quantity:newQty,updated_at:new Date().toISOString()})
+  .then(function(){toast("✓ Quantity updated to "+newQty);loadData();});
+}document.getElementById("edit-orig-name").value=sku;document.getElementById("edit-name").value=sku;document.getElementById("edit-sku").value=skuCode;openM("m-edit");}
 function doEdit(){var orig=document.getElementById("edit-orig-name").value;var name=document.getElementById("edit-name").value.trim();var sku=document.getElementById("edit-sku").value.trim();if(!name&&!sku){toast("Enter a model name or SKU");return;}var now=new Date().toISOString();Promise.all([sbPatch("inventory","sku=eq."+encodeURIComponent(orig),{sku:name||sku,sku_code:sku,updated_at:now}),sbPost("activity_log",{msg:"Edited model: "+orig+" → "+(name||sku),ts:now})]).then(function(){closeM("m-edit");toast("Model updated ✓");loadData();});}
 function addS(){var inp=document.getElementById("si");var raw=inp.value.trim().toUpperCase();if(!raw)return;inp.value="";procS(raw);inp.focus();}
 function procS(raw){if(queue.find(function(q){return q.serial===raw;})){toast("Already in queue");return;}var item=inv.find(function(i){return i.serial.toUpperCase()===raw;});queue.push({serial:raw,item:item,found:!!item});renderQ();}
+function renderNoSerialBtns(){
+  var bar=document.getElementById("no-serial-bar");
+  var btns=document.getElementById("no-serial-btns");
+  if(!noSerialItems.length){bar.style.display="none";return;}
+  bar.style.display="block";
+  btns.innerHTML=noSerialItems.map(function(i){
+    var short=i.sku.replace("Anker SOLIX ","").replace("Anker ","");
+    var inQueue=queue.find(function(q){return q.noSerial&&q.skuCode===i.skuCode;});
+    var qty=inQueue?inQueue.qty:0;
+    return "<div style='display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px'>"
+      +"<span style='font-size:12px;color:var(--text2)'>"+esc(short)+"</span>"
+      +"<button class='btn sm gh' onclick='guardAction(function(){adjNSQty(\""+esc(i.skuCode)+"\",-1)})' style='padding:2px 7px'>−</button>"
+      +"<span style='font-family:var(--mono);font-size:13px;min-width:20px;text-align:center;color:var(--accent)'>"+qty+"</span>"
+      +"<button class='btn sm gh' onclick='guardAction(function(){adjNSQty(\""+esc(i.skuCode)+"\",1)})' style='padding:2px 7px'>+</button>"
+      +"</div>";
+  }).join("");
+}
+function adjNSQty(skuCode,delta){
+  var item=noSerialItems.find(function(i){return i.skuCode===skuCode;});
+  if(!item)return;
+  var idx=queue.findIndex(function(q){return q.noSerial&&q.skuCode===skuCode;});
+  if(idx>=0){
+    queue[idx].qty+=delta;
+    if(queue[idx].qty<=0)queue.splice(idx,1);
+    else if(queue[idx].qty>item.quantity){queue[idx].qty=item.quantity;toast("Max available: "+item.quantity);}
+  }else if(delta>0){
+    if(item.quantity<1){toast("No stock available");return;}
+    queue.push({noSerial:true,skuCode:skuCode,sku:item.sku,qty:1,maxQty:item.quantity});
+  }
+  renderQ();renderNoSerialBtns();
+}
 function renderQ(){
   var wrap=document.getElementById("queue");var btn=document.getElementById("dbtn");
-  if(!queue.length){wrap.innerHTML="";btn.disabled=true;return;}
-  btn.disabled=!queue.some(function(q){return q.found;});var btnNow=document.getElementById("dbtn-now");if(btnNow)btnNow.disabled=!queue.some(function(q){return q.found;});
+  if(!queue.length){wrap.innerHTML="";btn.disabled=true;if(document.getElementById("dbtn-now"))document.getElementById("dbtn-now").disabled=true;renderNoSerialBtns();return;}
+  var hasValid=queue.some(function(q){return q.noSerial||q.found;});
+  btn.disabled=!hasValid;if(document.getElementById("dbtn-now"))document.getElementById("dbtn-now").disabled=!hasValid;
   wrap.innerHTML=queue.map(function(q,idx){
+    if(q.noSerial){
+      var short=q.sku.replace("Anker SOLIX ","").replace("Anker ","");
+      return "<div class='qi found'><span>&#10003;<strong style='margin:0 6px'>"+esc(short)+"</strong><span class='sn'>x"+q.qty+"</span></span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
+    }
     var st=q.found&&q.item.status!=="in-stock"?"<span style='margin-left:8px;opacity:.5;font-size:11px'>("+q.item.status+")</span>":"";
     var loc=q.found&&q.item.location?"<span style='margin-left:8px;font-size:11px;color:#7aabdd'>&#128205;"+esc(q.item.location)+"</span>":"";
     return "<div class='qi "+(q.found?"found":"nf")+"'><span>"+(q.found?"&#10003;":"&#10007;")+"<strong style='margin:0 6px'>"+(q.found?esc(q.item.sku):"Not found")+"</strong><span class='sn'>"+esc(q.serial)+"</span>"+st+loc+"</span><button onclick='rmQ("+idx+")'>&#215;</button></div>";
   }).join("");
+  renderNoSerialBtns();
 }
 function rmQ(i){queue.splice(i,1);renderQ();}
 function clrQ(){queue=[];renderQ();}
@@ -679,17 +747,29 @@ function doPaste(){var lines=document.getElementById("paste-txt").value.split("\
 // ── DISPATCH (actual save to DB) ──────────────────────────────
 function execDispatch(){
   var ref=document.getElementById("ref").value.trim();
-  var td=queue.filter(function(q){return q.found;});
-  if(!td.length)return;
+  var td=queue.filter(function(q){return q.found&&!q.noSerial;});
+  var tdNS=queue.filter(function(q){return q.noSerial&&q.qty>0;});
+  if(!td.length&&!tdNS.length)return;
   setSyncStatus("syncing","saving...");
   var now=new Date().toISOString();
-  var updates=td.map(function(q){return sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",location:null,updated_at:now});});
-  var serials=td.map(function(q){return q.serial;}).join(", ");
-  var msg="Dispatched "+td.length+" unit(s)"+(ref?" ["+ref+"]":"")+": "+serials;
+  var updates=[];
+  // Serialized items
+  td.forEach(function(q){updates.push(sbPatch("inventory","serial=eq."+encodeURIComponent(q.serial),{status:"dispatched",ref:ref||"",location:null,updated_at:now}));});
+  // No-serial items — descontar quantity
+  tdNS.forEach(function(q){
+    var item=noSerialItems.find(function(i){return i.skuCode===q.skuCode;});
+    if(!item)return;
+    var newQty=Math.max(0,item.quantity-q.qty);
+    updates.push(sbPatch("inventory","serial=eq."+encodeURIComponent(item.serial),{quantity:newQty,updated_at:now}));
+  });
+  var serialList=td.map(function(q){return q.serial;});
+  var nsList=tdNS.map(function(q){return q.sku.replace("Anker SOLIX ","").replace("Anker ","")+" x"+q.qty;});
+  var allItems=[].concat(serialList,nsList);
+  var msg="Dispatched "+(td.length+tdNS.length)+" item(s)"+(ref?" ["+ref+"]":"")+": "+allItems.join(", ");
   updates.push(sbPost("activity_log",{msg:msg,type:"dispatch",ts:now}));
-  var nf=queue.filter(function(q){return !q.found;});
+  var nf=queue.filter(function(q){return !q.found&&!q.noSerial;});
   if(nf.length)updates.push(sbPost("activity_log",{msg:"Not found (skipped): "+nf.map(function(q){return q.serial;}).join(", "),ts:now}));
-  Promise.all(updates).then(function(){queue=[];document.getElementById("ref").value="";toast(td.length+" unit(s) dispatched");loadData();})
+  Promise.all(updates).then(function(){queue=[];document.getElementById("ref").value="";toast((td.length+tdNS.length)+" item(s) dispatched");loadData();})
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving");});
 }
 
@@ -741,17 +821,22 @@ function selectDtype(t){
 function renderReceiptPreview(){
   var ref=document.getElementById("ref").value.trim();
   var ticket=document.getElementById("receipt-ticket").value.trim();
-  var td=queue.filter(function(q){return q.found;});
+  var td=queue.filter(function(q){return q.found&&!q.noSerial;});
+  var tdNS=queue.filter(function(q){return q.noSerial&&q.qty>0;});
   var typeLabel=_dtype==="bs"?"🟢 Brigada de Servicio":_dtype==="cn"?"🔴 Consultor de Venta":"⚫ Regular Anker";
   var html="<div class='rp-header'>";
   html+="<div><div class='rp-label'>Case</div><div class='rp-value'>"+esc(ref)+"</div></div>";
   html+="<div><div class='rp-label'>Type</div><div class='rp-value'>"+typeLabel+"</div></div>";
   if(ticket)html+="<div><div class='rp-label'>Ticket</div><div class='rp-value'>"+esc(ticket)+"</div></div>";
-  html+="<div><div class='rp-label'>Units</div><div class='rp-value'>"+td.length+"</div></div>";
+  html+="<div><div class='rp-label'>Items</div><div class='rp-value'>"+(td.length+tdNS.length)+"</div></div>";
   html+="</div>";
   td.forEach(function(q){
     var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");
     html+="<div class='rp-item'><span class='rp-model'>"+esc(modelShort)+"</span><span class='rp-serial'>"+esc(q.serial)+"</span></div>";
+  });
+  tdNS.forEach(function(q){
+    var modelShort=q.sku.replace("Anker SOLIX ","").replace("Anker ","");
+    html+="<div class='rp-item'><span class='rp-model'>"+esc(modelShort)+"</span><span class='rp-serial'>x"+q.qty+"</span></div>";
   });
   document.getElementById("receipt-preview").innerHTML=html;
 }
@@ -835,7 +920,8 @@ async function generateStampedPdf(){
     var ref=document.getElementById("ref").value.trim();
     var ticket=document.getElementById("receipt-ticket").value.trim();
     var notes=document.getElementById("receipt-notes").value.trim();
-    var td=queue.filter(function(q){return q.found;});
+    var td=queue.filter(function(q){return q.found&&!q.noSerial;});
+    var tdNS=queue.filter(function(q){return q.noSerial&&q.qty>0;});
     var color=_dtype==="bs"?[0,0.55,0]:_dtype==="cn"?[0.8,0.1,0.1]:[0,0,0];
     var pdfDoc=await PDFLib.PDFDocument.load(_pdfBytes);
     var page=pdfDoc.getPages()[0];
@@ -852,6 +938,11 @@ async function generateStampedPdf(){
     td.forEach(function(q){
       var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");
       page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});
+      ty-=11;
+    });
+    tdNS.forEach(function(q){
+      var modelShort=q.sku.replace("Anker SOLIX ","").replace("Anker ","");
+      page.drawText(modelShort+" x"+q.qty,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});
       ty-=11;
     });
     if(notes){
