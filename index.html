@@ -5,8 +5,8 @@
   Author     : Sergio A. Romero
   D.B.A.     : Baracutey
   Built with : Personal Supabase account & API keys
-  Version    : 2.8
-  Updated    : May 2026
+  Version    : 2.9
+  Updated    : Jun 2026
 
   Description:
     Personal project built for warehouse inventory tracking
@@ -170,8 +170,6 @@ tbody tr:last-child td{border-bottom:none}
 #ai-input-row{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border)}
 #ai-input{flex:1;font-size:12px;padding:7px 10px}
 #ai-send{padding:7px 12px;font-size:12px}
-
-/* ── Dispatch type selector ── */
 .dtype-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
 .dtype-btn{padding:14px 8px;border-radius:var(--r);border:2px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:12px;font-weight:600;font-family:var(--sans);text-align:center;transition:all .2s}
 .dtype-btn:hover{opacity:.8}
@@ -181,18 +179,12 @@ tbody tr:last-child td{border-bottom:none}
 .dtype-btn.rg.sel{background:#222;border-color:var(--text);color:var(--text)}
 .dtype-btn.cn{border-color:#5a1a1a;color:#e05555}
 .dtype-btn.cn.sel{background:#2a0f0f;border-color:#e05555;color:#e05555}
-
-/* ── PDF upload area ── */
 .pdf-drop{border:2px dashed var(--border2);border-radius:var(--r);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;color:var(--text3)}
 .pdf-drop:hover,.pdf-drop.dragover{border-color:var(--accent);color:var(--accent)}
 .pdf-drop.loaded{border-color:var(--accent-dim);background:var(--accent-dark);color:var(--accent)}
-
-/* ── Signature canvas ── */
 .sig-wrap{border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;background:#fff;position:relative}
 .sig-canvas{display:block;width:100%;height:120px;cursor:crosshair}
 .sig-label{position:absolute;bottom:6px;left:10px;font-size:10px;color:#999;pointer-events:none}
-
-/* ── Share buttons ── */
 .share-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:1rem}
 .share-btn{padding:12px;border-radius:var(--r);border:1px solid var(--border2);background:var(--surface2);cursor:pointer;font-size:13px;font-family:var(--sans);color:var(--text);text-align:center;transition:all .15s}
 .share-btn:hover{background:var(--border)}
@@ -204,17 +196,21 @@ tbody tr:last-child td{border-bottom:none}
 .share-btn.lk:hover{background:var(--warn-dark)}
 .share-btn.pr{border-color:var(--text3);color:var(--text3)}
 .share-btn.pr:hover{background:var(--surface2);color:var(--text)}
-
-/* ── Step indicator ── */
 .steps{display:flex;gap:4px;margin-bottom:1.25rem}
 .step{flex:1;height:3px;border-radius:2px;background:var(--border2)}
 .step.done{background:var(--accent)}
 .step.active{background:var(--accent-dim)}
-
+/* ── Receipt preview ── */
+.rp-item{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-radius:var(--r);margin-bottom:4px;background:var(--accent-dark);border:1px solid var(--accent-dim)}
+.rp-model{font-weight:600;font-size:13px;color:var(--accent)}
+.rp-serial{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.rp-header{display:flex;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.rp-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.rp-value{font-size:13px;font-weight:600;color:var(--text)}
+/* ── Skip sig warning ── */
+.skip-warn{margin-top:10px;padding:10px;background:var(--warn-dark);border:1px solid var(--warn);border-radius:var(--r)}
 @media(max-width:768px){.stats{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:640px){.main{padding:1rem}.stats{grid-template-columns:repeat(2,1fr)}.hdr{padding:0 1rem}.fld-row{grid-template-columns:1fr}#ai-panel{width:100%;right:0}}
-
-/* ── Login screen ── */
 #login-screen{position:fixed;inset:0;background:#0d0d0d;z-index:500;display:flex;align-items:center;justify-content:center}
 #login-screen.hidden{display:none}
 .login-box{background:#161616;border:1px solid #2a2a2a;border-radius:12px;padding:2rem;width:340px;max-width:95vw;text-align:center}
@@ -331,8 +327,9 @@ tbody tr:last-child td{border-bottom:none}
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn dan sm" onclick="guardAction(clrQ)">Clear</button>
-<button class="btn" id="dbtn-now" onclick="guardAction(execDispatch)" disabled>⚡ Dispatch now</button>
-<button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>📄 Dispatch + Receipt</button>        </div>
+          <button class="btn" id="dbtn-now" onclick="guardAction(execDispatch)" disabled>⚡ Dispatch now</button>
+          <button class="btn pri" id="dbtn" onclick="guardAction(openDispatchReceipt)" disabled>📄 Dispatch + Receipt</button>
+        </div>
       </div>
     </div>
     <div id="recent"></div>
@@ -399,15 +396,16 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ── DISPATCH RECEIPT MODAL ── -->
+<!-- ── DISPATCH RECEIPT MODAL (v2.9 — 5 steps) ── -->
 <div class="mbg" id="m-receipt">
   <div class="modal" style="width:560px">
-    <h3 id="receipt-title">&#128196; Dispatch Receipt</h3>
-    <div class="steps" id="receipt-steps">
+    <h3>&#128196; Dispatch Receipt</h3>
+    <div class="steps">
       <div class="step active" id="step-ind-0"></div>
       <div class="step" id="step-ind-1"></div>
       <div class="step" id="step-ind-2"></div>
       <div class="step" id="step-ind-3"></div>
+      <div class="step" id="step-ind-4"></div>
     </div>
     <!-- Step 0: Type -->
     <div id="receipt-step-0">
@@ -438,9 +436,22 @@ tbody tr:last-child td{border-bottom:none}
         <button class="btn pri" id="pdf-next-btn" onclick="receiptNext(2)" disabled>Next &#8594;</button>
       </div>
     </div>
-    <!-- Step 2: Signature -->
+    <!-- Step 2: Preview -->
     <div id="receipt-step-2" style="display:none">
-      <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Have the client sign in the box below (Recibido).</p>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Review dispatch details before proceeding.</p>
+      <div id="receipt-preview" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);padding:12px;margin-bottom:1rem"></div>
+      <div class="fld">
+        <label>Driver notes (optional)</label>
+        <input id="receipt-notes" placeholder="e.g. Cliente no disponible, entregado a portero..."/>
+      </div>
+      <div class="ma">
+        <button class="btn" onclick="receiptBack(1)">&#8592; Back</button>
+        <button class="btn pri" onclick="receiptNext(3)">Next &#8594;</button>
+      </div>
+    </div>
+    <!-- Step 3: Signature -->
+    <div id="receipt-step-3" style="display:none">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Have the client sign below (Recibido).</p>
       <div class="sig-wrap">
         <canvas id="sig-canvas" class="sig-canvas" width="500" height="120"></canvas>
         <div class="sig-label">Recibido: ___________________________</div>
@@ -448,13 +459,22 @@ tbody tr:last-child td{border-bottom:none}
       <div style="display:flex;justify-content:flex-end;margin-top:6px">
         <button class="btn sm gh" onclick="clearSig()">🗑 Clear signature</button>
       </div>
-      <div class="ma">
-        <button class="btn" onclick="receiptBack(1)">&#8592; Back</button>
-        <button class="btn pri" id="sig-next-btn" onclick="receiptNext(3)" disabled>Generate PDF &#8594;</button>
+      <div class="ma" style="flex-wrap:wrap">
+        <button class="btn" onclick="receiptBack(2)">&#8592; Back</button>
+        <button class="btn dan sm" onclick="skipSignature()" style="margin-right:auto">⚠ Skip signature</button>
+        <button class="btn pri" id="sig-next-btn" onclick="receiptNext(4)" disabled>Generate PDF &#8594;</button>
+      </div>
+      <div id="skip-sig-wrap" style="display:none;margin-top:10px;padding:10px;background:var(--warn-dark);border:1px solid var(--warn);border-radius:var(--r)">
+        <p style="font-size:12px;color:var(--warn);margin-bottom:8px">⚠ Reason required to skip signature:</p>
+        <input id="skip-sig-reason" placeholder="e.g. Cliente ausente — entregado a familiar" style="width:100%;font-size:12px;margin-bottom:8px"/>
+        <div style="display:flex;gap:6px;justify-content:flex-end">
+          <button class="btn sm gh" onclick="document.getElementById('skip-sig-wrap').style.display='none'">Cancel</button>
+          <button class="btn sm" style="border-color:var(--warn);color:var(--warn)" onclick="confirmSkipSignature()">Confirm skip</button>
+        </div>
       </div>
     </div>
-    <!-- Step 3: Share -->
-    <div id="receipt-step-3" style="display:none">
+    <!-- Step 4: Share -->
+    <div id="receipt-step-4" style="display:none">
       <p style="font-size:12px;color:var(--text3);margin-bottom:.75rem">Receipt generated and dispatch logged. Send to client:</p>
       <div id="share-options">
         <div class="share-grid">
@@ -484,7 +504,7 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ── PIN / Account Modal (FIX: was empty) ── -->
+<!-- ── PIN / Account Modal ── -->
 <div class="mbg" id="m-pin">
   <div class="modal" style="width:380px">
     <h3>👤 Account</h3>
@@ -496,7 +516,6 @@ tbody tr:last-child td{border-bottom:none}
       <div id="pin-change-err" style="font-size:12px;color:var(--danger);min-height:18px;margin-bottom:.5rem"></div>
       <button class="btn pri" style="width:100%" onclick="doChangePin()">Update PIN</button>
     </div>
-    <!-- Admin-only section — hidden by default, shown after login if admin -->
     <div id="admin-pin-section" style="display:none;border-top:1px solid var(--border);padding-top:1rem">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:.75rem;font-weight:600">⚙ Reset user PIN (Admin)</div>
       <div class="fld"><label>User</label><select id="pin-reset-user" style="width:100%"></select></div>
@@ -633,7 +652,6 @@ async function doCreateShipment(){var date=document.getElementById("ship-date").
 function exportShipmentCSV(s){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var rows=[["Serial","Condition","Order / Customer Ref","Notes","Received"]];serials.forEach(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)rows.push([u.serial,u.condition,u.order_ref||"",u.notes||"",u.received_at?new Date(u.received_at).toLocaleDateString():""]);else rows.push([sn,"","","",""]);});var csv=rows.map(function(r){return r.map(function(c){return'"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");var a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="shipment_"+new Date().toISOString().slice(0,10)+".csv";a.click();toast("CSV exported ✓");}
 function printShipment(s,full){var serials=[];try{serials=JSON.parse(s.serials||"[]");}catch(e){}var dest=s.destination||"Outbound";var date=s.shipped_at?new Date(s.shipped_at).toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"}):"—";var rows=full?serials.map(function(sn){var u=rmaIncoming.find(function(u){return u.serial===sn;});if(u)return "<tr><td>"+esc(u.serial)+"</td><td>"+esc(u.condition)+"</td><td>"+esc(u.order_ref||"")+"</td></tr>";return "<tr><td>"+esc(sn)+"</td><td>—</td><td>—</td></tr>";}).join(""):serials.map(function(sn,i){return "<tr><td>"+(i+1)+"</td><td>"+esc(sn)+"</td></tr>";}).join("");var html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;padding:2rem;font-size:13px}table{width:100%;border-collapse:collapse}th{border-bottom:2px solid #000;padding:6px;font-size:11px;text-align:left}td{padding:6px;border-bottom:1px solid #ddd}</style></head><body><h2>Windmar · Anker — "+(full?"Report":"Shipping List")+"</h2><p>"+esc(dest)+" · "+date+" · "+serials.length+" units</p>"+(full?"<table><thead><tr><th>Serial</th><th>Condition</th><th>Ref</th></tr></thead><tbody>":"<table><thead><tr><th>#</th><th>Serial</th></tr></thead><tbody>")+rows+"</tbody></table><scr"+"ipt>window.onload=function(){window.print()};<\/scr"+"ipt></body></html>";
   var w=window.open("","_blank","width=900,height=700");w.document.write(html);w.document.close();}
-
 function goRMASub(t){var s=["returns","incoming","shipments"];document.querySelectorAll(".rma-subtab").forEach(function(b,i){b.classList.toggle("active",s[i]===t);});document.querySelectorAll(".rma-subsec").forEach(function(x){x.classList.remove("active");});document.getElementById("rmasub-"+t).classList.add("active");}
 function fd(ts){if(!ts)return"";var d=new Date(ts);return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
@@ -675,12 +693,13 @@ function execDispatch(){
   .catch(function(){setSyncStatus("err","save failed");toast("Error saving");});
 }
 
-// ── RECEIPT FLOW ──────────────────────────────────────────────
+// ── RECEIPT FLOW (v2.9) ───────────────────────────────────────
 var _dtype="";
 var _pdfBytes=null;
 var _signedPdfBytes=null;
 var _sigHasData=false;
 var _signedPdfUrl=null;
+var _sigSkipped=false;
 
 function openDispatchReceipt(){
   var ref=document.getElementById("ref").value.trim();
@@ -691,19 +710,22 @@ function openDispatchReceipt(){
 }
 
 function resetReceipt(){
-  _dtype="";_pdfBytes=null;_signedPdfBytes=null;_sigHasData=false;_signedPdfUrl=null;
+  _dtype="";_pdfBytes=null;_signedPdfBytes=null;_sigHasData=false;_signedPdfUrl=null;_sigSkipped=false;
   document.getElementById("pdf-drop").classList.remove("loaded");
   document.getElementById("pdf-drop-text").textContent="📄 Click or drag PDF here";
   document.getElementById("pdf-next-btn").disabled=true;
   document.getElementById("receipt-ticket").value="";
   document.getElementById("ticket-field").style.display="none";
+  document.getElementById("receipt-notes").value="";
+  document.getElementById("skip-sig-reason").value="";
+  document.getElementById("skip-sig-wrap").style.display="none";
   document.getElementById("share-email-row").style.display="none";
   document.getElementById("share-link-copied").style.display="none";
   ["dtype-bs","dtype-rg","dtype-cn"].forEach(function(id){document.getElementById(id).classList.remove("sel");});
 }
 
 function showReceiptStep(n){
-  [0,1,2,3].forEach(function(i){
+  [0,1,2,3,4].forEach(function(i){
     document.getElementById("receipt-step-"+i).style.display=i===n?"block":"none";
     var ind=document.getElementById("step-ind-"+i);
     ind.className="step "+(i<n?"done":i===n?"active":"");
@@ -716,15 +738,51 @@ function selectDtype(t){
   document.getElementById("ticket-field").style.display=t==="bs"?"block":"none";
 }
 
+function renderReceiptPreview(){
+  var ref=document.getElementById("ref").value.trim();
+  var ticket=document.getElementById("receipt-ticket").value.trim();
+  var td=queue.filter(function(q){return q.found;});
+  var typeLabel=_dtype==="bs"?"🟢 Brigada de Servicio":_dtype==="cn"?"🔴 Consultor de Venta":"⚫ Regular Anker";
+  var html="<div class='rp-header'>";
+  html+="<div><div class='rp-label'>Case</div><div class='rp-value'>"+esc(ref)+"</div></div>";
+  html+="<div><div class='rp-label'>Type</div><div class='rp-value'>"+typeLabel+"</div></div>";
+  if(ticket)html+="<div><div class='rp-label'>Ticket</div><div class='rp-value'>"+esc(ticket)+"</div></div>";
+  html+="<div><div class='rp-label'>Units</div><div class='rp-value'>"+td.length+"</div></div>";
+  html+="</div>";
+  td.forEach(function(q){
+    var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");
+    html+="<div class='rp-item'><span class='rp-model'>"+esc(modelShort)+"</span><span class='rp-serial'>"+esc(q.serial)+"</span></div>";
+  });
+  document.getElementById("receipt-preview").innerHTML=html;
+}
+
 function receiptNext(step){
   if(step===1&&!_dtype){toast("Select a dispatch type");return;}
   if(step===2&&!_pdfBytes){toast("Upload a PDF first");return;}
-  if(step===3){generateStampedPdf();return;}
+  if(step===3){renderReceiptPreview();showReceiptStep(3);initSigCanvas();return;}
+  if(step===4){generateStampedPdf();return;}
   showReceiptStep(step);
-  if(step===2)initSigCanvas();
+  if(step===2)renderReceiptPreview();
 }
 
-function receiptBack(step){showReceiptStep(step);}
+function receiptBack(step){
+  showReceiptStep(step);
+  if(step===3)initSigCanvas();
+}
+
+function skipSignature(){
+  document.getElementById("skip-sig-wrap").style.display="block";
+  document.getElementById("skip-sig-reason").focus();
+}
+
+function confirmSkipSignature(){
+  var reason=document.getElementById("skip-sig-reason").value.trim();
+  if(!reason){toast("Enter a reason to skip signature");document.getElementById("skip-sig-reason").focus();return;}
+  _sigSkipped=true;
+  document.getElementById("receipt-notes").value=document.getElementById("receipt-notes").value
+    +(document.getElementById("receipt-notes").value?" | ":"")+"Sin firma: "+reason;
+  generateStampedPdf();
+}
 
 function handlePdfDrop(e){
   e.preventDefault();document.getElementById("pdf-drop").classList.remove("dragover");
@@ -776,6 +834,7 @@ async function generateStampedPdf(){
   try{
     var ref=document.getElementById("ref").value.trim();
     var ticket=document.getElementById("receipt-ticket").value.trim();
+    var notes=document.getElementById("receipt-notes").value.trim();
     var td=queue.filter(function(q){return q.found;});
     var color=_dtype==="bs"?[0,0.55,0]:_dtype==="cn"?[0.8,0.1,0.1]:[0,0,0];
     var pdfDoc=await PDFLib.PDFDocument.load(_pdfBytes);
@@ -790,17 +849,30 @@ async function generateStampedPdf(){
     page.drawText(typeLabel,{x:rightX,y:ty,size:9,font:font,color:rgb(color[0],color[1],color[2])});
     ty-=13;
     if(_dtype==="bs"&&ticket){page.drawText("Ticket # "+ticket,{x:rightX,y:ty,size:9,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=13;}
-    td.forEach(function(q){var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});ty-=11;});
-    var sigY=120;
-    var canvas=document.getElementById("sig-canvas");
-    var sigDataUrl=canvas.toDataURL("image/png");
-    var sigImageBytes=await fetch(sigDataUrl).then(function(r){return r.arrayBuffer();});
-    var sigImage=await pdfDoc.embedPng(sigImageBytes);
-    page.drawImage(sigImage,{x:100,y:sigY,width:160,height:30});
+    td.forEach(function(q){
+      var modelShort=q.item.sku.replace("Anker SOLIX ","").replace("Anker ","").replace("Home Power Panel","HPP").replace("Generator Input Adapter","GIA").replace("Solar Generator","SG").replace("EverFrost","EF");
+      page.drawText(modelShort+" - "+q.serial,{x:rightX,y:ty,size:8,font:fontReg,color:rgb(color[0],color[1],color[2])});
+      ty-=11;
+    });
+    if(notes){
+      ty-=4;
+      page.drawText("Nota: "+notes,{x:rightX,y:ty,size:7,font:fontReg,color:rgb(0.5,0.5,0.5)});
+      ty-=10;
+    }
+    if(!_sigSkipped){
+      var sigY=120;
+      var canvas=document.getElementById("sig-canvas");
+      var sigDataUrl=canvas.toDataURL("image/png");
+      var sigImageBytes=await fetch(sigDataUrl).then(function(r){return r.arrayBuffer();});
+      var sigImage=await pdfDoc.embedPng(sigImageBytes);
+      page.drawImage(sigImage,{x:100,y:sigY,width:160,height:30});
+    } else {
+      page.drawText("* Firma no capturada",{x:100,y:120,size:8,font:fontReg,color:rgb(0.8,0.2,0.2)});
+    }
     var pdfBytesOut=await pdfDoc.save();
     _signedPdfBytes=pdfBytesOut;
     execDispatch();
-    showReceiptStep(3);
+    showReceiptStep(4);
     if(_dtype==="bs"){document.getElementById("share-options").style.display="none";document.getElementById("brigada-share").style.display="block";}
     else{document.getElementById("share-options").style.display="block";document.getElementById("brigada-share").style.display="none";}
     toast("✓ Receipt ready");
@@ -823,12 +895,10 @@ function shareWhatsApp(){
   setTimeout(function(){window.open("https://wa.me/?text=Recibo+de+entrega+"+encodeURIComponent(ref),"_blank");},500);
   toast("PDF downloaded — share via WhatsApp");
 }
-
 function shareEmail(){
   var row=document.getElementById("share-email-row");
   row.style.display=row.style.display==="none"?"block":"none";
 }
-
 function sendEmail(){
   var email=document.getElementById("share-email-input").value.trim();
   if(!email){toast("Enter an email address");return;}
@@ -839,7 +909,6 @@ function sendEmail(){
   setTimeout(function(){window.location.href="mailto:"+email+"?subject=Recibo+de+entrega+"+encodeURIComponent(ref)+"&body=Adjunto+recibo+de+entrega.+Favor+descargar+el+PDF+adjunto.";},500);
   toast("PDF downloaded — email client opened");
 }
-
 async function shareLink(){
   if(!_signedPdfBytes){toast("PDF not ready");return;}
   var ref=document.getElementById("ref").value.trim()||"recibo";
@@ -860,7 +929,6 @@ async function shareLink(){
     toast("Could not upload — PDF downloaded instead");
   }
 }
-
 function sharePrint(){
   if(!_signedPdfBytes){toast("PDF not ready");return;}
   var url=getPdfUrl();
@@ -896,11 +964,8 @@ async function sendAI(){
   document.getElementById("ai-send").disabled=true;
   var t=appendAIMsg("Thinking…","system");
   try{
-    // FIX: send userId and userRole so auth.js validates the session correctly
     var res=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-      action:"chat",
-      message:msg,
-      history:aiHistory,
+      action:"chat",message:msg,history:aiHistory,
       password:sessionStorage.getItem("wm_ai_pw")||"",
       userId:currentUser?currentUser.id:null,
       userRole:currentUser?currentUser.role:null
@@ -922,189 +987,70 @@ async function sendAI(){
 function appendAIMsg(text,role){var wrap=document.getElementById("ai-messages");var div=document.createElement("div");div.className="ai-msg "+role;div.textContent=text;wrap.appendChild(div);wrap.scrollTop=wrap.scrollHeight;return div;}
 
 // ── USER SYSTEM ───────────────────────────────────────────────
-var currentUser = null;
-var allUsers = [];
-var pinBuffer = "";
-var selectedUsername = "";
-
-window.pinKey = function(k) {
-  if (!selectedUsername) { document.getElementById("login-err").textContent = "Select a user first"; return; }
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += k;
-  updatePinDots();
-  if (pinBuffer.length === 4) setTimeout(submitLogin, 150);
-};
-window.pinBack = function() { if (pinBuffer.length > 0) { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); } };
-window.pinClear = function() { pinBuffer = ""; updatePinDots(); document.getElementById("login-err").textContent = ""; };
-window.selectUser = function(username) {
-  selectedUsername = username;
-  pinBuffer = "";
-  updatePinDots();
-  document.getElementById("login-err").textContent = "";
-  document.querySelectorAll(".user-btn").forEach(function(b) {
-    b.classList.toggle("sel", b.getAttribute("data-username") === username);
-  });
-};
-
-function updatePinDots() {
-  for (var i = 0; i < 4; i++) {
-    var dot = document.getElementById("pd"+i);
-    if (i < pinBuffer.length) { dot.textContent = "●"; dot.classList.add("filled"); }
-    else { dot.textContent = "_"; dot.classList.remove("filled"); }
-  }
+var currentUser=null,allUsers=[],pinBuffer="",selectedUsername="";
+window.pinKey=function(k){if(!selectedUsername){document.getElementById("login-err").textContent="Select a user first";return;}if(pinBuffer.length>=4)return;pinBuffer+=k;updatePinDots();if(pinBuffer.length===4)setTimeout(submitLogin,150);};
+window.pinBack=function(){if(pinBuffer.length>0){pinBuffer=pinBuffer.slice(0,-1);updatePinDots();}};
+window.pinClear=function(){pinBuffer="";updatePinDots();document.getElementById("login-err").textContent="";};
+window.selectUser=function(username){selectedUsername=username;pinBuffer="";updatePinDots();document.getElementById("login-err").textContent="";document.querySelectorAll(".user-btn").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-username")===username);});};
+function updatePinDots(){for(var i=0;i<4;i++){var dot=document.getElementById("pd"+i);if(i<pinBuffer.length){dot.textContent="●";dot.classList.add("filled");}else{dot.textContent="_";dot.classList.remove("filled");}}}
+async function initLogin(){
+  try{
+    var r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_users"})});
+    var data=await r.json();allUsers=data.users||[];
+    var grid=document.getElementById("user-grid");
+    grid.innerHTML=allUsers.map(function(u){var initials=u.display_name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().slice(0,2);var cls=(u.role==="admin"||u.role==="dispatcher")?"admin-btn":"driver-btn";return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='window.selectUser(\""+u.username+"\")'><div class='user-avatar'>"+initials+"</div><div class='user-name'>"+u.display_name+"</div></div>";}).join("");
+  }catch(e){console.error("Could not load users:",e);document.getElementById("login-err").textContent="Error loading users — check connection";}
 }
-
-async function initLogin() {
-  try {
-    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_users"})});
-    var data = await r.json();
-    allUsers = data.users || [];
-    var grid = document.getElementById("user-grid");
-    grid.innerHTML = allUsers.map(function(u) {
-      var initials = u.display_name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().slice(0,2);
-      var cls = (u.role === "admin" || u.role === "dispatcher") ? "admin-btn" : "driver-btn";
-      return "<div class='user-btn "+cls+"' data-username='"+u.username+"' onclick='window.selectUser(\""+u.username+"\")'>"
-        +"<div class='user-avatar'>"+initials+"</div>"
-        +"<div class='user-name'>"+u.display_name+"</div>"
-        +"</div>";
-    }).join("");
-  } catch(e) {
-    console.error("Could not load users:", e);
-    document.getElementById("login-err").textContent = "Error loading users — check connection";
-  }
+async function submitLogin(){
+  document.getElementById("login-err").textContent="";
+  try{
+    var r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"login",username:selectedUsername,pin:pinBuffer})});
+    var data=await r.json();
+    if(data.ok){currentUser=data.user;document.getElementById("login-screen").classList.add("hidden");onLoginSuccess();}
+    else{document.getElementById("login-err").textContent="Wrong PIN — try again";pinBuffer="";updatePinDots();}
+  }catch(e){document.getElementById("login-err").textContent="Connection error";pinBuffer="";updatePinDots();}
 }
-
-async function submitLogin() {
-  document.getElementById("login-err").textContent = "";
-  try {
-    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"login", username:selectedUsername, pin:pinBuffer})});
-    var data = await r.json();
-    if (data.ok) {
-      currentUser = data.user;
-      document.getElementById("login-screen").classList.add("hidden");
-      onLoginSuccess();
-    } else {
-      document.getElementById("login-err").textContent = "Wrong PIN — try again";
-      pinBuffer = ""; updatePinDots();
-    }
-  } catch(e) {
-    document.getElementById("login-err").textContent = "Connection error";
-    pinBuffer = ""; updatePinDots();
-  }
-}
-
-function onLoginSuccess() {
-  // Show user badge in header
-  document.getElementById("user-badge").style.display = "inline-flex";
-  document.getElementById("user-badge-name").textContent = currentUser.display_name;
-  sessionStorage.setItem("wm_current_user_id", currentUser.id);
-  sessionStorage.setItem("wm_current_user_role", currentUser.role);
-
-  if (currentUser.role === "driver") {
-    // Driver gets their own simplified view
-    document.querySelector("main.main").style.display = "none";
-    document.getElementById("lock-btn").style.display = "none";
-    document.getElementById("ai-btn").style.display = "none";
-    document.getElementById("driver-view").style.display = "block";
+function onLoginSuccess(){
+  document.getElementById("user-badge").style.display="inline-flex";
+  document.getElementById("user-badge-name").textContent=currentUser.display_name;
+  sessionStorage.setItem("wm_current_user_id",currentUser.id);
+  sessionStorage.setItem("wm_current_user_role",currentUser.role);
+  if(currentUser.role==="driver"){
+    document.querySelector("main.main").style.display="none";
+    document.getElementById("lock-btn").style.display="none";
+    document.getElementById("ai-btn").style.display="none";
+    document.getElementById("driver-view").style.display="block";
     loadDriverDeliveries();
-  } else {
-    // Admin and dispatcher get full app
-    document.querySelector("main.main").style.display = "block";
-    document.getElementById("lock-btn").style.display = "inline-flex";
-
-    // Only admin gets AI
-    document.getElementById("ai-btn").style.display =
-      currentUser.role === "admin" ? "inline-flex" : "none";
-
-    // Unlock editor for logged-in users
+  }else{
+    document.querySelector("main.main").style.display="block";
+    document.getElementById("lock-btn").style.display="inline-flex";
+    document.getElementById("ai-btn").style.display=currentUser.role==="admin"?"inline-flex":"none";
     setUnlocked(true);
-
-    // Populate driver assign dropdown
-    document.getElementById("assign-bar").style.display = "flex";
-    var drivers = allUsers.filter(function(u){ return u.role === "driver"; });
-    var sel = document.getElementById("assign-driver");
-    sel.innerHTML = "<option value=''>— No assign (self) —</option>" +
-      drivers.map(function(u){ return "<option value='"+u.id+"'>"+u.display_name+"</option>"; }).join("");
-
-    // Show admin PIN reset section if admin — FIX: safe guard
-    if (currentUser.role === "admin") {
-      var adminSec = document.getElementById("admin-pin-section");
-      if (adminSec) adminSec.style.display = "block";
-      var pinSel = document.getElementById("pin-reset-user");
-      if (pinSel) {
-        pinSel.innerHTML = allUsers
-          .filter(function(u){ return u.id !== currentUser.id; })
-          .map(function(u){ return "<option value='"+u.id+"'>"+u.display_name+" ("+u.role+")</option>"; })
-          .join("");
-      }
+    document.getElementById("assign-bar").style.display="flex";
+    var drivers=allUsers.filter(function(u){return u.role==="driver";});
+    var sel=document.getElementById("assign-driver");
+    sel.innerHTML="<option value=''>— No assign (self) —</option>"+drivers.map(function(u){return "<option value='"+u.id+"'>"+u.display_name+"</option>";}).join("");
+    if(currentUser.role==="admin"){
+      var adminSec=document.getElementById("admin-pin-section");if(adminSec)adminSec.style.display="block";
+      var pinSel=document.getElementById("pin-reset-user");
+      if(pinSel)pinSel.innerHTML=allUsers.filter(function(u){return u.id!==currentUser.id;}).map(function(u){return "<option value='"+u.id+"'>"+u.display_name+" ("+u.role+")</option>";}).join("");
     }
-
-    // Load all data
     loadData();
   }
 }
-
-async function loadDriverDeliveries() {
-  var wrap = document.getElementById("driver-view");
-  wrap.innerHTML = "<div style='font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:1rem'>📦 "+currentUser.display_name+" · Entregas del día</div><div id='driver-deliveries'><div class='empty'>Cargando...</div></div>";
-  try {
-    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"get_driver_dispatches", driverId:currentUser.id})});
-    var data = await r.json();
-    var dispatches = data.dispatches || [];
-    var dw = document.getElementById("driver-deliveries");
-    if (!dispatches.length) { dw.innerHTML = "<div class='empty'>No hay entregas asignadas para hoy</div>"; return; }
-    dw.innerHTML = dispatches.map(function(d) {
-      var serials = []; try { serials = JSON.parse(d.serials); } catch(e) {}
-      var btn = d.status !== "signed"
-        ? "<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert(\"Firma pendiente — próximamente\")'>✍ Capturar firma</button>"
-        : "";
-      return "<div class='delivery-card'><div class='dc-case'>"+esc(d.case_ref)+"</div><div class='dc-serials'>"+serials.map(esc).join("<br>")+"</div><span class='dc-status "+(d.status === "signed" ? "signed" : "pending")+"'>"+(d.status === "signed" ? "✓ Firmado" : "Pendiente")+"</span>"+btn+"</div>";
-    }).join("");
-  } catch(e) {
-    var dw2 = document.getElementById("driver-deliveries");
-    if (dw2) dw2.innerHTML = "<div class='empty'>Error cargando entregas</div>";
-  }
+async function loadDriverDeliveries(){
+  var wrap=document.getElementById("driver-view");
+  wrap.innerHTML="<div style='font-family:var(--mono);font-size:13px;color:var(--accent);margin-bottom:1rem'>📦 "+currentUser.display_name+" · Entregas del día</div><div id='driver-deliveries'><div class='empty'>Cargando...</div></div>";
+  try{
+    var r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"get_driver_dispatches",driverId:currentUser.id})});
+    var data=await r.json();var dispatches=data.dispatches||[];
+    var dw=document.getElementById("driver-deliveries");
+    if(!dispatches.length){dw.innerHTML="<div class='empty'>No hay entregas asignadas para hoy</div>";return;}
+    dw.innerHTML=dispatches.map(function(d){var serials=[];try{serials=JSON.parse(d.serials);}catch(e){}var btn=d.status!=="signed"?"<button class='btn pri sm' style='width:100%;margin-top:.75rem' onclick='alert(\"Firma pendiente — próximamente\")'>✍ Capturar firma</button>":"";return "<div class='delivery-card'><div class='dc-case'>"+esc(d.case_ref)+"</div><div class='dc-serials'>"+serials.map(esc).join("<br>")+"</div><span class='dc-status "+(d.status==="signed"?"signed":"pending")+"'>"+(d.status==="signed"?"✓ Firmado":"Pendiente")+"</span>"+btn+"</div>";}).join("");
+  }catch(e){var dw2=document.getElementById("driver-deliveries");if(dw2)dw2.innerHTML="<div class='empty'>Error cargando entregas</div>";}
 }
-
-async function doChangePin() {
-  var current = document.getElementById("pin-current").value;
-  var newPin = document.getElementById("pin-new").value;
-  var confirm = document.getElementById("pin-confirm").value;
-  var err = document.getElementById("pin-change-err");
-  if (!current || !newPin) { err.textContent = "Fill in all fields"; return; }
-  if (newPin !== confirm) { err.textContent = "PINs do not match"; return; }
-  if (newPin.length < 4) { err.textContent = "PIN must be at least 4 digits"; return; }
-  try {
-    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"change_pin", userId:currentUser.id, currentPin:current, newPin:newPin})});
-    var data = await r.json();
-    if (data.ok) {
-      closeM("m-pin");
-      document.getElementById("pin-current").value="";
-      document.getElementById("pin-new").value="";
-      document.getElementById("pin-confirm").value="";
-      err.textContent = "";
-      toast("✓ PIN updated");
-    } else { err.textContent = data.error || "Error"; }
-  } catch(e) { err.textContent = "Connection error"; }
-}
-
-async function doAdminResetPin() {
-  var targetId = document.getElementById("pin-reset-user").value;
-  var newPin = document.getElementById("pin-reset-new").value;
-  var adminPin = document.getElementById("pin-reset-admin").value;
-  var err = document.getElementById("pin-reset-err");
-  if (!targetId || !newPin || !adminPin) { err.textContent = "Fill in all fields"; return; }
-  try {
-    var r = await fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({action:"admin_reset_pin", adminId:currentUser.id, adminPin:adminPin, targetUserId:parseInt(targetId), newPin:newPin})});
-    var data = await r.json();
-    if (data.ok) {
-      document.getElementById("pin-reset-new").value="";
-      document.getElementById("pin-reset-admin").value="";
-      err.textContent="";
-      toast("✓ User PIN reset");
-    } else { err.textContent = data.error || "Error"; }
-  } catch(e) { err.textContent = "Connection error"; }
-}
+async function doChangePin(){var current=document.getElementById("pin-current").value;var newPin=document.getElementById("pin-new").value;var confirm=document.getElementById("pin-confirm").value;var err=document.getElementById("pin-change-err");if(!current||!newPin){err.textContent="Fill in all fields";return;}if(newPin!==confirm){err.textContent="PINs do not match";return;}if(newPin.length<4){err.textContent="PIN must be at least 4 digits";return;}try{var r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"change_pin",userId:currentUser.id,currentPin:current,newPin:newPin})});var data=await r.json();if(data.ok){closeM("m-pin");document.getElementById("pin-current").value="";document.getElementById("pin-new").value="";document.getElementById("pin-confirm").value="";err.textContent="";toast("✓ PIN updated");}else{err.textContent=data.error||"Error";}}catch(e){err.textContent="Connection error";}}
+async function doAdminResetPin(){var targetId=document.getElementById("pin-reset-user").value;var newPin=document.getElementById("pin-reset-new").value;var adminPin=document.getElementById("pin-reset-admin").value;var err=document.getElementById("pin-reset-err");if(!targetId||!newPin||!adminPin){err.textContent="Fill in all fields";return;}try{var r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"admin_reset_pin",adminId:currentUser.id,adminPin:adminPin,targetUserId:parseInt(targetId),newPin:newPin})});var data=await r.json();if(data.ok){document.getElementById("pin-reset-new").value="";document.getElementById("pin-reset-admin").value="";err.textContent="";toast("✓ User PIN reset");}else{err.textContent=data.error||"Error";}}catch(e){err.textContent="Connection error";}}
 
 // ── Initialize ────────────────────────────────────────────────
 updateLockUI();
