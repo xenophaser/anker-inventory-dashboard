@@ -6,8 +6,8 @@ export default async function handler(req, res) {
   const { action, password, message, history, username, pin, userId } = req.body;
 
   const SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-  const SB_KEY = process.env.SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
-  const SB_HEADERS = {
+const SB_KEY = env.SUPABASE_KEY;
+if (!SB_KEY) return Response.json({ error: 'Server misconfigured' }, { status: 500 });  const SB_HEADERS = {
     'Content-Type': 'application/json',
     'apikey': SB_KEY,
     'Authorization': `Bearer ${SB_KEY}`
