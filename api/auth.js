@@ -6,8 +6,9 @@ export default async function handler(req, res) {
   const { action, password, message, history, username, pin, userId } = req.body;
 
   const SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-const SB_KEY = process.env.SUPABASE_KEY;
-if (!SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
+  const SB_KEY = process.env.SUPABASE_KEY;
+  if (!SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
+  const SB_HEADERS = {
     'Content-Type': 'application/json',
     'apikey': SB_KEY,
     'Authorization': `Bearer ${SB_KEY}`
@@ -127,7 +128,6 @@ if (!SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
 
   // ── Chat (AI) ──────────────────────────────────────────────
   if (action === 'chat') {
-    // FIX: accept either legacy password OR valid user session (admin/dispatcher)
     const correct = process.env.EDIT_PASSWORD;
     const validLegacy = correct && password === correct;
     const validUser = req.body.userId && ['admin', 'dispatcher'].includes(req.body.userRole);
@@ -168,26 +168,26 @@ if (!SB_KEY) return res.status(500).json({ error: 'Server misconfigured' });
     }
 
     async function tool_get_serial({ serial }) {
-  const clean = serial.trim().toUpperCase();
-  console.log('get_serial called with:', JSON.stringify(clean));
-  const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
-  const rows = await r.json();
-  console.log('get_serial result:', rows[0] ? rows[0].status : 'NOT FOUND');
-  return rows[0] || null;
-}
+      const clean = serial.trim().toUpperCase();
+      console.log('get_serial called with:', JSON.stringify(clean));
+      const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
+      const rows = await r.json();
+      console.log('get_serial result:', rows[0] ? rows[0].status : 'NOT FOUND');
+      return rows[0] || null;
+    }
 
     async function tool_dispatch_unit({ serial, ref }) {
-  const clean = serial.trim().toUpperCase();
-  console.log('dispatch_unit called with:', JSON.stringify(clean));
-  const now = new Date().toISOString();
-  const item = await tool_get_serial({ serial: clean });
-  console.log('dispatch_unit item found:', item ? item.status : 'NULL');
-  if (!item) return { ok: false, error: `Serial ${clean} not found` };
-  if (item.status !== 'in-stock') return { ok: false, error: `Serial ${clean} is ${item.status}, not in-stock` };
-  await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'dispatched', ref: ref || '', location: null, updated_at: now }) });
-  await fetch(`${SB_URL}/rest/v1/activity_log`, { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ msg: `Dispatched via AI: ${clean}${ref ? ' [' + ref + ']' : ''}`, type: 'dispatch', serial: clean, ts: now }) });
-  return { ok: true, serial: clean, model: item.sku };
-}
+      const clean = serial.trim().toUpperCase();
+      console.log('dispatch_unit called with:', JSON.stringify(clean));
+      const now = new Date().toISOString();
+      const item = await tool_get_serial({ serial: clean });
+      console.log('dispatch_unit item found:', item ? item.status : 'NULL');
+      if (!item) return { ok: false, error: `Serial ${clean} not found` };
+      if (item.status !== 'in-stock') return { ok: false, error: `Serial ${clean} is ${item.status}, not in-stock` };
+      await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'dispatched', ref: ref || '', location: null, updated_at: now }) });
+      await fetch(`${SB_URL}/rest/v1/activity_log`, { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ msg: `Dispatched via AI: ${clean}${ref ? ' [' + ref + ']' : ''}`, type: 'dispatch', serial: clean, ts: now }) });
+      return { ok: true, serial: clean, model: item.sku };
+    }
 
     async function tool_log_return({ serial, reason, notes }) {
       const now = new Date().toISOString();
