@@ -2,8 +2,9 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   const SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
-const SB_KEY = env.SUPABASE_KEY;
-if (!SB_KEY) return Response.json({ error: 'Server misconfigured' }, { status: 500 });  const SB_HEADERS = {
+  const SB_KEY = env.SUPABASE_KEY;
+  if (!SB_KEY) return Response.json({ error: 'Server misconfigured' }, { status: 500 });
+  const SB_HEADERS = {
     'Content-Type': 'application/json',
     'apikey': SB_KEY,
     'Authorization': `Bearer ${SB_KEY}`
