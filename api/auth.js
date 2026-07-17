@@ -169,21 +169,17 @@ export default async function handler(req, res) {
 
     async function tool_get_serial({ serial }) {
       const clean = serial.trim().toUpperCase();
-      console.log('get_serial called with:', JSON.stringify(clean));
       const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
       const rows = await r.json();
-      console.log('get_serial result:', rows[0] ? rows[0].status : 'NOT FOUND');
       return rows[0] || null;
     }
 
     async function tool_dispatch_unit({ serial, ref }) {
       const clean = serial.trim().toUpperCase();
-      console.log('dispatch_unit called with:', JSON.stringify(clean));
       const now = new Date().toISOString();
       const item = await tool_get_serial({ serial: clean });
-      console.log('dispatch_unit item found:', item ? item.status : 'NULL');
       if (!item) return { ok: false, error: `Serial ${clean} not found` };
-      if (item.status !== 'in-stock') return { ok: false, error: `Serial ${clean} is ${item.status}, not in-stock` };
+      if (item.status !== 'in-stock') return { ok: false, error: `Serial ${clean} is ${item.status}, not in-stock. Use update_status to correct if needed.` };
       await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'dispatched', ref: ref || '', location: null, updated_at: now }) });
       await fetch(`${SB_URL}/rest/v1/activity_log`, { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ msg: `Dispatched via AI: ${clean}${ref ? ' [' + ref + ']' : ''}`, type: 'dispatch', serial: clean, ts: now }) });
       return { ok: true, serial: clean, model: item.sku };
@@ -205,6 +201,35 @@ export default async function handler(req, res) {
       if (!item) return { ok: false, error: `Serial ${serial} not found` };
       await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ location: location || null }) });
       return { ok: true, serial, location: location || null };
+    }
+
+    // ── NEW: update_status — correct any status with audit note ──
+    async function tool_update_status({ serial, new_status, reason }) {
+      const clean = serial.trim().toUpperCase();
+      const now = new Date().toISOString();
+      const VALID = ['in-stock', 'dispatched', 'rma'];
+      if (!VALID.includes(new_status)) return { ok: false, error: `Invalid status. Must be one of: ${VALID.join(', ')}` };
+      const item = await tool_get_serial({ serial: clean });
+      if (!item) return { ok: false, error: `Serial ${clean} not found` };
+      const prev = item.status;
+      if (prev === new_status) return { ok: false, error: `Serial ${clean} is already ${new_status}` };
+      await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, {
+        method: 'PATCH',
+        headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: new_status, updated_at: now })
+      });
+      await fetch(`${SB_URL}/rest/v1/activity_log`, {
+        method: 'POST',
+        headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({
+          msg: `[CORRECTION] ${clean}: ${prev} → ${new_status} — ${reason}`,
+          type: 'correction',
+          serial: clean,
+          reason,
+          ts: now
+        })
+      });
+      return { ok: true, serial: clean, previous_status: prev, new_status, reason };
     }
 
     async function tool_get_activity_log({ limit = 20, type, date_from }) {
@@ -232,16 +257,61 @@ export default async function handler(req, res) {
     }
 
     const TOOLS = [
-      { name: "get_inventory_summary", description: "Get a summary of all inventory models with counts.", input_schema: { type: "object", properties: {}, required: [] } },
-      { name: "get_inventory", description: "Get inventory units filtered by model name (sku_name partial), SKU code, status, or location.", input_schema: { type: "object", properties: { sku_name: { type: "string" }, sku_code: { type: "string" }, status: { type: "string", enum: ["in-stock","dispatched","rma"] }, location: { type: "string" } }, required: [] } },
-      { name: "get_serial", description: "Look up a specific unit by serial number.", input_schema: { type: "object", properties: { serial: { type: "string" } }, required: ["serial"] } },
-      { name: "dispatch_unit", description: "Dispatch a unit. Only works for in-stock units.", input_schema: { type: "object", properties: { serial: { type: "string" }, ref: { type: "string" } }, required: ["serial"] } },
-      { name: "log_return", description: "Log a return or RMA.", input_schema: { type: "object", properties: { serial: { type: "string" }, reason: { type: "string", enum: ["No cambio","Re coordinado","Cancelado","Back to stock","Damaged","Other"] }, notes: { type: "string" } }, required: ["serial","reason"] } },
-      { name: "update_location", description: "Update warehouse location for a unit.", input_schema: { type: "object", properties: { serial: { type: "string" }, location: { type: "string" } }, required: ["serial"] } },
-      { name: "get_activity_log", description: "Get activity log entries.", input_schema: { type: "object", properties: { limit: { type: "integer" }, type: { type: "string", enum: ["dispatch","rma","add"] }, date_from: { type: "string" } }, required: [] } }
+      {
+        name: "get_inventory_summary",
+        description: "Get a summary of all inventory models with counts.",
+        input_schema: { type: "object", properties: {}, required: [] }
+      },
+      {
+        name: "get_inventory",
+        description: "Get inventory units filtered by model name (sku_name partial), SKU code, status, or location.",
+        input_schema: { type: "object", properties: { sku_name: { type: "string" }, sku_code: { type: "string" }, status: { type: "string", enum: ["in-stock","dispatched","rma"] }, location: { type: "string" } }, required: [] }
+      },
+      {
+        name: "get_serial",
+        description: "Look up a specific unit by serial number.",
+        input_schema: { type: "object", properties: { serial: { type: "string" } }, required: ["serial"] }
+      },
+      {
+        name: "dispatch_unit",
+        description: "Dispatch a unit. Only works for in-stock units. If the unit is in another status and needs to be corrected to dispatched, use update_status instead.",
+        input_schema: { type: "object", properties: { serial: { type: "string" }, ref: { type: "string" } }, required: ["serial"] }
+      },
+      {
+        name: "log_return",
+        description: "Log a return or RMA. Reason determines new status: 'No cambio', 'Re coordinado', 'Cancelado', 'Back to stock' → in-stock. 'Damaged', 'Other' → rma.",
+        input_schema: { type: "object", properties: { serial: { type: "string" }, reason: { type: "string", enum: ["No cambio","Re coordinado","Cancelado","Back to stock","Damaged","Other"] }, notes: { type: "string" } }, required: ["serial","reason"] }
+      },
+      {
+        name: "update_status",
+        description: "Correct the status of any unit to any valid value (in-stock, dispatched, rma). Use this for corrections when the current status is wrong — for example, a unit showing as RMA that was actually delivered. Always requires a reason that will be logged in the audit trail.",
+        input_schema: { type: "object", properties: { serial: { type: "string" }, new_status: { type: "string", enum: ["in-stock","dispatched","rma"] }, reason: { type: "string", description: "Required. Explain why the status is being corrected. This is logged permanently." } }, required: ["serial","new_status","reason"] }
+      },
+      {
+        name: "update_location",
+        description: "Update warehouse location for a unit.",
+        input_schema: { type: "object", properties: { serial: { type: "string" }, location: { type: "string" } }, required: ["serial"] }
+      },
+      {
+        name: "get_activity_log",
+        description: "Get activity log entries. Use type='correction' to see status corrections.",
+        input_schema: { type: "object", properties: { limit: { type: "integer" }, type: { type: "string", enum: ["dispatch","rma","add","correction"] }, date_from: { type: "string" } }, required: [] }
+      }
     ];
 
-    const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico.
+    const SYSTEM = `You are an inventory assistant for Windmar's Anker warehouse in Puerto Rico. You have full authority to make corrections directly — never tell the user to contact someone else or that you can't do something when you have the tools to do it.
+
+TOOLS AUTHORITY:
+- update_status: use this to correct any wrong status, including RMA → dispatched, dispatched → in-stock, etc. Always provide a clear reason.
+- dispatch_unit: only for in-stock units going out. If the unit is already dispatched or RMA but status is wrong, use update_status instead.
+- log_return: for actual returns and RMA logging.
+
+RULES:
+- If a unit's status is wrong (e.g. shows RMA but was actually delivered), correct it immediately with update_status and a reason.
+- Never suggest contacting "the systems team" or say you lack permission — you have all necessary tools.
+- All corrections are permanently logged in the audit trail.
+- If asked about past corrections, use get_activity_log with type='correction'.
+
 Model shortcuts: C300X=A1723111, F2600=A1781111, F3800=F3800Plus, 400W=solar panel, 200W, BP2600, BP3800, ATS=Home Power Panel, GIA=Generator Input Adapter, EverFrost.
 Location codes: NDC3-NDC8, NDB3-NDB8, NCA1-NCA7, NAA1, NAB1-NAB2, NAC1, NAC3.
 Use sku_name with short names — never ask for full model names.
@@ -276,6 +346,7 @@ Always use exact_total_in_database for counts. Respond in the user's language (S
               case 'get_serial':            result = await tool_get_serial(block.input); break;
               case 'dispatch_unit':         result = await tool_dispatch_unit(block.input); break;
               case 'log_return':            result = await tool_log_return(block.input); break;
+              case 'update_status':         result = await tool_update_status(block.input); break;
               case 'update_location':       result = await tool_update_location(block.input); break;
               case 'get_activity_log':      result = await tool_get_activity_log(block.input); break;
               default: result = { error: `Unknown tool: ${block.name}` };
