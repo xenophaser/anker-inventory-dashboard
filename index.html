@@ -14,6 +14,7 @@
   - Receipt: share buttons (WhatsApp / Email / Link / download fallback) now
     use the case # captured when the PDF was generated. Before, they read the
     case # field after Dispatch had cleared it, so files were named "recibo".
+  - Branding: Windmar Home logo (logo.png) in the header and on the login screen.
 
   Changes v3.2 (on top of v3.0):
     - Smart search / autocomplete: dispatch (#si) and inventory
@@ -49,6 +50,8 @@
 body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 .hdr{background:#000;border-bottom:1px solid var(--border);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 .logo{font-family:var(--mono);font-size:13px;letter-spacing:.08em;display:flex;align-items:center;gap:10px;color:var(--text)}
+.logo-img{height:38px;width:auto;display:block}
+.logo-sep{width:1px;height:22px;background:var(--border2)}
 .dot{width:8px;height:8px;background:var(--accent);border-radius:50%;animation:blink 2.5s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 .hdr-btns{display:flex;gap:6px;align-items:center}
@@ -279,7 +282,7 @@ tbody tr:last-child td{border-bottom:none}
 
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">📦 WINDMAR · ANKER</div>
+    <div class="login-logo"><img src="logo.png" alt="Windmar Home" style="height:84px;width:auto;display:block;margin:0 auto .6rem" onerror="this.style.display='none'"/><span style="font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--text2)">ANKER WAREHOUSE</span></div>
     <p style="font-size:12px;color:var(--text3);margin-bottom:1rem">Select your user</p>
     <div class="user-grid" id="user-grid"></div>
     <div class="pin-err" id="login-err"></div>
@@ -310,7 +313,7 @@ tbody tr:last-child td{border-bottom:none}
 <div id="toast"></div>
 
 <header class="hdr">
-  <div class="logo"><div class="dot"></div>WINDMAR &middot; ANKER WAREHOUSE</div>
+  <div class="logo"><img src="logo.png" alt="Windmar Home" class="logo-img" onerror="this.style.display='none'"/><span class="logo-sep"></span>ANKER WAREHOUSE</div>
   <div class="hdr-btns">
     <div id="sync-indicator"><div id="sync-dot"></div><span id="sync-label">connecting...</span></div>
     <div id="user-badge" class="user-badge" style="display:none" onclick="openM('m-pin')">👤 <span id="user-badge-name"></span></div>
