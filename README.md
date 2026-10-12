@@ -1,3 +1,5 @@
+<p align="center"><img src="readme-banner.png" alt="Windmar Home" width="420"></p>
+
 # Anker Warehouse — Inventory Management System
 
 Serial-level inventory, dispatch, returns (RMA) and activity tracking for the Anker SOLIX stock at the Windmar warehouse in Puerto Rico. Single-page web app with a small serverless backend and a Supabase (Postgres) database.
@@ -30,6 +32,8 @@ api/auth.js             Vercel serverless function: login, PINs, AI chat, receip
 api/check-stock.js      Vercel cron endpoint: low-stock email via Resend
 functions/api/auth.js   Cloudflare Pages Function: Cloudflare equivalent of api/auth.js
 vercel.json             /inventory rewrite and the cron schedule
+logo.png                Windmar Home logo (white, transparent) used in the app header and login screen
+readme-banner.png       Logo on a dark background, used only at the top of this README
 ```
 
 > **Keep the two `auth.js` files in sync.** The repo is set up for both Vercel and Cloudflare Pages, and each host serves its own copy. They have drifted: the Cloudflare copy has no `update_status` AI tool. Any change to auth, AI or dispatch endpoints must be made in both (or one host retired).
@@ -103,6 +107,7 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 ## Changelog
 
 **v3.3 (Oct 2026)**
+- Windmar Home logo added to the app header and login screen.
 - Fixed duplicate dispatches/log entries (lock, queue cleared early, guarded update, skip-and-note for already-dispatched serials).
 - Receipt share actions now use the case # captured when the PDF was generated (previously file names fell back to `recibo`).
 - AI endpoints: guarded writes in `dispatch_unit`, `log_return` and `update_status`; `log_return` refuses no-op returns; serial lookup rejects wildcards.
