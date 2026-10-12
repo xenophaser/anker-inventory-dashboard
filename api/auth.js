@@ -167,8 +167,17 @@ export default async function handler(req, res) {
       return allRows;
     }
 
+    // v3.3: guarded inventory update — only changes the row if guardQuery still holds; returns true if a row actually changed
+    async function patchInventoryGuarded(serialExact, guardQuery, body) {
+      const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serialExact)}&${guardQuery}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=representation' }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(`inventory update failed (${r.status})`);
+      const rows = await r.json();
+      return Array.isArray(rows) && rows.length > 0;
+    }
+
     async function tool_get_serial({ serial }) {
-      const clean = serial.trim().toUpperCase();
+      const clean = String(serial || '').trim().toUpperCase();
+      if (!clean || /[%*_\\]/.test(clean)) return null; // v3.3: wildcard characters are never valid in a serial
       const r = await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}&select=serial,sku,sku_code,status,location,ref,notes,updated_at`, { headers: SB_HEADERS });
       const rows = await r.json();
       return rows[0] || null;
@@ -180,7 +189,8 @@ export default async function handler(req, res) {
       const item = await tool_get_serial({ serial: clean });
       if (!item) return { ok: false, error: `Serial ${clean} not found` };
       if (item.status !== 'in-stock') return { ok: false, error: `Serial ${clean} is ${item.status}, not in-stock. Use update_status to correct if needed.` };
-      await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'dispatched', ref: ref || '', location: null, updated_at: now }) });
+      const changed = await patchInventoryGuarded(item.serial, 'status=eq.in-stock', { status: 'dispatched', ref: ref || '', location: null, updated_at: now });
+      if (!changed) return { ok: false, error: `Serial ${clean} is no longer in-stock; no change made` };
       await fetch(`${SB_URL}/rest/v1/activity_log`, { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ msg: `Dispatched via AI: ${clean}${ref ? ' [' + ref + ']' : ''}`, type: 'dispatch', serial: clean, ts: now }) });
       return { ok: true, serial: clean, model: item.sku };
     }
@@ -191,7 +201,9 @@ export default async function handler(req, res) {
       const newStatus = RESTOCK.includes(reason) ? 'in-stock' : 'rma';
       const item = await tool_get_serial({ serial });
       if (!item) return { ok: false, error: `Serial ${serial} not found` };
-      await fetch(`${SB_URL}/rest/v1/inventory?serial=eq.${encodeURIComponent(serial)}`, { method: 'PATCH', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: newStatus, updated_at: now }) });
+      if (item.status === newStatus) return { ok: false, error: `Serial ${item.serial} is already ${newStatus}; no change made` };
+      const changed = await patchInventoryGuarded(item.serial, `status=neq.${newStatus}`, { status: newStatus, updated_at: now });
+      if (!changed) return { ok: false, error: `Serial ${item.serial} changed status in the meantime; no change made` };
       await fetch(`${SB_URL}/rest/v1/activity_log`, { method: 'POST', headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' }, body: JSON.stringify({ msg: `${newStatus === 'in-stock' ? 'Returned to stock' : 'RMA'} via AI: ${serial} — ${reason}${notes ? ' (' + notes + ')' : ''}`, type: 'rma', serial, reason, notes: notes || '', ts: now }) });
       return { ok: true, serial, new_status: newStatus };
     }
@@ -213,11 +225,8 @@ export default async function handler(req, res) {
       if (!item) return { ok: false, error: `Serial ${clean} not found` };
       const prev = item.status;
       if (prev === new_status) return { ok: false, error: `Serial ${clean} is already ${new_status}` };
-      await fetch(`${SB_URL}/rest/v1/inventory?serial=ilike.${encodeURIComponent(clean)}`, {
-        method: 'PATCH',
-        headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ status: new_status, updated_at: now })
-      });
+      const changed = await patchInventoryGuarded(item.serial, `status=eq.${encodeURIComponent(prev)}`, { status: new_status, updated_at: now });
+      if (!changed) return { ok: false, error: `Serial ${clean} changed status in the meantime; no change made` };
       await fetch(`${SB_URL}/rest/v1/activity_log`, {
         method: 'POST',
         headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
