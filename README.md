@@ -5,7 +5,7 @@
 Serial-level inventory, dispatch, returns (RMA) and activity tracking for the Anker SOLIX stock at the Windmar warehouse in Puerto Rico. Single-page web app with a small serverless backend and a Supabase (Postgres) database.
 
 - **Author:** Sergio A. Romero
-- **Version:** 3.3 (Oct 2026)
+- **Version:** 3.4 (Oct 2026)
 
 ---
 
@@ -69,11 +69,30 @@ Environment variables (set in the Vercel and/or Cloudflare dashboard — never c
 | `SUPABASE_KEY` | `api/auth.js`, `api/check-stock.js`, `functions/api/auth.js` | Supabase key for server-side calls |
 | `EDIT_PASSWORD` | both `auth.js` | Password that unlocks editing in the UI |
 | `ANTHROPIC_API_KEY` | both `auth.js` | AI assistant |
+| `SESSION_SECRET` | both `auth.js` | Long random string used to sign login session tokens (generate one, e.g. 64 random characters). **Set it on every host before deploying v3.4.** |
 | `RESEND_API_KEY` | `api/check-stock.js` | Low-stock alert emails |
 
 The browser app itself talks to Supabase directly with the project's public (anon) key, which is embedded in `index.html`. **Row Level Security on every table is therefore what actually protects the data** — the in-app Editor lock is a UI gate only.
 
 Cron: `vercel.json` runs `/api/check-stock` daily at 13:00 UTC (`0 13 * * *`). The code comments and email footer say "every 12 hours" — update one or the other.
+
+---
+
+## Sessions and access control (v3.4)
+
+Logging in returns a signed token (valid 12 hours) that the app sends with every protected request. The server verifies it — the user id and role are taken from the token, never from the request body.
+
+| Action | Requirement |
+|---|---|
+| `login`, `get_users`, `auth` | public |
+| `chat` (AI) | valid token with role `admin`/`dispatcher`, **or** the Editor password |
+| `save_dispatch` | token, role `admin`/`dispatcher` |
+| `sign_dispatch`, `upload_receipt` | any valid token |
+| `get_driver_dispatches` | token; own id, or `admin` |
+| `change_pin` | token; own account + current PIN |
+| `admin_reset_pin` | token with role `admin` + the admin's PIN |
+
+If `SESSION_SECRET` is missing, login still works but protected actions return a clear "SESSION_SECRET is not set" error (they fail closed). Changing `SESSION_SECRET` signs everyone out.
 
 ---
 
@@ -101,10 +120,16 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 - The Cloudflare `auth.js` lacks the `update_status` AI tool.
 - Cron schedule and its comments disagree (daily vs. every 12 hours).
 - The activity log records no source (UI vs. AI vs. SQL) beyond the message format.
+- PINs are stored and compared as plain text, and login attempts are not rate-limited.
+- The browser app writes to `inventory`, `activity_log` and the RMA tables directly with the public anon key, so Row Level Security policies on those tables are open to anon reads/writes. Only the server endpoints above are token-protected.
 
 ---
 
 ## Changelog
+
+**v3.4 (Oct 2026)**
+- Signed session tokens: the AI assistant, driver view, PIN change/reset and dispatch/receipt endpoints now verify who is calling on the server. New `SESSION_SECRET` environment variable required.
+- Receipt upload file names are validated.
 
 **v3.3 (Oct 2026)**
 - Windmar Home logo added to the app header and login screen.
