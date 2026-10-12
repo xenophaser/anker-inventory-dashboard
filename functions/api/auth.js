@@ -1,3 +1,30 @@
+// ── v3.4: signed session tokens ──────────────────────────────
+// Login returns a token signed with SESSION_SECRET. Protected actions verify it,
+// so the role/user id can no longer be claimed by the browser.
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const _enc = new TextEncoder();
+async function _wc() { return globalThis.crypto; }
+function _b64uEncode(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _b64uDecode(str) { str = str.replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '='; return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+async function _hmacKey(secret) { return (await _wc()).subtle.importKey('raw', _enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']); }
+async function signSession(secret, user) {
+  const body = _b64uEncode(_enc.encode(JSON.stringify({ uid: user.id, role: user.role, exp: Date.now() + SESSION_TTL_MS })));
+  const sig = new Uint8Array(await (await _wc()).subtle.sign('HMAC', await _hmacKey(secret), _enc.encode(body)));
+  return body + '.' + _b64uEncode(sig);
+}
+async function verifySession(secret, token) {
+  if (!secret || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  try {
+    const ok = await (await _wc()).subtle.verify('HMAC', await _hmacKey(secret), _b64uDecode(parts[1]), _enc.encode(parts[0]));
+    if (!ok) return null;
+    const p = JSON.parse(new TextDecoder().decode(_b64uDecode(parts[0])));
+    if (!p || typeof p.exp !== 'number' || p.exp < Date.now()) return null;
+    return p;
+  } catch (e) { return null; }
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -16,6 +43,17 @@ export async function onRequestPost(context) {
 
   const { action, password, message, history, username, pin, userId } = body;
 
+  // ── v3.4: session gate ─────────────────────────────────────
+  const SESSION_SECRET = env.SESSION_SECRET;
+  const session = await verifySession(SESSION_SECRET, body.token);
+  // returns null when allowed, or {status, error} when not
+  const needSession = (roles) => {
+    if (!SESSION_SECRET) return { status: 500, error: 'Server misconfigured: SESSION_SECRET is not set' };
+    if (!session) return { status: 401, error: 'Login required — please log in again' };
+    if (roles && !roles.includes(session.role)) return { status: 403, error: 'Not allowed for your role' };
+    return null;
+  };
+
   // ── Login ──────────────────────────────────────────────────
   if (action === 'login') {
     if (!username || !pin) return Response.json({ ok: false, error: 'Missing credentials' }, { status: 400 });
@@ -24,12 +62,15 @@ export async function onRequestPost(context) {
     if (!users.length) return Response.json({ ok: false, error: 'User not found' }, { status: 401 });
     const user = users[0];
     if (user.pin !== pin) return Response.json({ ok: false, error: 'Wrong PIN' }, { status: 401 });
-    return Response.json({ ok: true, user: { id: user.id, username: user.username, display_name: user.display_name, role: user.role } });
+    const token = SESSION_SECRET ? await signSession(SESSION_SECRET, user) : null;
+    return Response.json({ ok: true, user: { id: user.id, username: user.username, display_name: user.display_name, role: user.role }, token });
   }
 
   // ── Change PIN ─────────────────────────────────────────────
   if (action === 'change_pin') {
     const { userId, currentPin, newPin } = body;
+    { const deny = needSession(); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
+    if (String(session.uid) !== String(userId)) return Response.json({ ok: false, error: 'You can only change your own PIN' }, { status: 403 });
     if (!userId || !currentPin || !newPin) return Response.json({ ok: false, error: 'Missing fields' }, { status: 400 });
     if (newPin.length < 4) return Response.json({ ok: false, error: 'PIN must be at least 4 digits' }, { status: 400 });
     const r = await fetch(`${SB_URL}/rest/v1/users?id=eq.${userId}&select=pin`, { headers: SB_HEADERS });
@@ -42,6 +83,8 @@ export async function onRequestPost(context) {
   // ── Admin: reset another user's PIN ───────────────────────
   if (action === 'admin_reset_pin') {
     const { adminId, adminPin, targetUserId, newPin } = body;
+    { const deny = needSession(['admin']); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
+    if (String(session.uid) !== String(adminId)) return Response.json({ ok: false, error: 'Admin mismatch' }, { status: 403 });
     if (!adminId || !adminPin || !targetUserId || !newPin) return Response.json({ ok: false, error: 'Missing fields' }, { status: 400 });
     const r = await fetch(`${SB_URL}/rest/v1/users?id=eq.${adminId}&select=pin,role`, { headers: SB_HEADERS });
     const admins = await r.json();
@@ -60,6 +103,8 @@ export async function onRequestPost(context) {
   // ── Get driver dispatches ──────────────────────────────────
   if (action === 'get_driver_dispatches') {
     const { driverId } = body;
+    { const deny = needSession(); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
+    if (session.role !== 'admin' && String(session.uid) !== String(driverId)) return Response.json({ ok: false, error: 'Not allowed' }, { status: 403 });
     if (!driverId) return Response.json({ error: 'Missing driverId' }, { status: 400 });
     const today = new Date().toISOString().slice(0, 10);
     const r = await fetch(`${SB_URL}/rest/v1/dispatches?assigned_to=eq.${driverId}&created_at=gte.${today}T00:00:00Z&order=created_at.desc&select=*`, { headers: SB_HEADERS });
@@ -69,6 +114,7 @@ export async function onRequestPost(context) {
 
   // ── Save dispatch record ───────────────────────────────────
   if (action === 'save_dispatch') {
+    { const deny = needSession(['admin', 'dispatcher']); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
     const { caseRef, dispatchType, ticketNum, serials, assignedTo, dispatchedBy } = body;
     const r = await fetch(`${SB_URL}/rest/v1/dispatches`, {
       method: 'POST',
@@ -89,6 +135,7 @@ export async function onRequestPost(context) {
 
   // ── Update dispatch status (driver signs) ─────────────────
   if (action === 'sign_dispatch') {
+    { const deny = needSession(); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
     const { dispatchId, pdfUrl } = body;
     await fetch(`${SB_URL}/rest/v1/dispatches?id=eq.${dispatchId}`, {
       method: 'PATCH',
@@ -100,7 +147,9 @@ export async function onRequestPost(context) {
 
   // ── Upload PDF to storage & get signed URL ─────────────────
   if (action === 'upload_receipt') {
+    { const deny = needSession(); if (deny) return Response.json({ ok: false, error: deny.error }, { status: deny.status }); }
     const { fileName, pdfBase64 } = body;
+    if (typeof fileName !== 'string' || !/^[A-Za-z0-9._\-\/]{1,200}$/.test(fileName) || fileName.includes('..')) return Response.json({ error: 'Invalid fileName' }, { status: 400 });
     if (!fileName || !pdfBase64) return Response.json({ error: 'Missing fields' }, { status: 400 });
     const pdfBuffer = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
     const uploadRes = await fetch(`${SB_URL}/storage/v1/object/almacen-recibos/${fileName}`, {
@@ -132,7 +181,7 @@ export async function onRequestPost(context) {
   if (action === 'chat') {
     const correct = env.EDIT_PASSWORD;
     const validLegacy = correct && password === correct;
-    const validUser = body.userId && ['admin', 'dispatcher'].includes(body.userRole);
+    const validUser = session && ['admin', 'dispatcher'].includes(session.role); // v3.4: role comes from the signed token, not from the request body
     if (!validLegacy && !validUser) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const apiKey = env.ANTHROPIC_API_KEY;
