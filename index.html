@@ -6,6 +6,12 @@
   Version    : 3.3
   Updated    : Oct 2026
 
+  Changes v3.3 (on top of v3.2):
+  - Dispatch now: fixed duplicate dispatches/log entries. Re-entrancy lock on
+    execDispatch, queue cleared before the first await (restored on error),
+    and a guarded update (status != dispatched) that only logs serials that
+    actually changed. Already-dispatched serials are skipped and noted.
+
   Changes v3.2 (on top of v3.0):
     - Smart search / autocomplete: dispatch (#si) and inventory
       (#f-search) fields now suggest matching serials, models,
