@@ -5,7 +5,7 @@
 Serial-level inventory, dispatch, returns (RMA) and activity tracking for the Anker SOLIX stock at the Windmar warehouse in Puerto Rico. Single-page web app with a small serverless backend and a Supabase (Postgres) database.
 
 - **Author:** Sergio A. Romero
-- **Version:** 3.6 (Oct 2026)
+- **Version:** 3.7 (Oct 2026)
 
 ---
 
@@ -130,6 +130,11 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 ---
 
 ## Changelog
+
+**v3.7 (Oct 2026)**
+- Added 3 new quantity-tracked (no-serial) SKUs to `NO_SERIAL_SKUS`:
+  - **PowerCore 10,000** (`A1263S12`, 1624 units) — ships with no serial number on the box at all, same as the existing no-serial accessories (e.g. the AC Charging Cable, `A17U1111`). This is a **permanent** no-serial SKU.
+  - **Anker Prime 20,000mAh Power Bank 200W** (`A1336011`, 269 units) and **Anker Prime 12,000mAh Power Bank 130W** (`A1335011`, 254 units) — these units do have individual serial numbers, just not yet scanned. This is an **interim** state only: once the real serials are collected, pull these two SKU codes back out of `NO_SERIAL_SKUS`, delete their placeholder rows, and bulk-import the real units as normal serialized rows.
 
 **v3.6 (Oct 2026)**
 - v3.5 fixed the ambiguous drill-down count but paired a filtered row count against an unfiltered status breakdown (e.g. `101 in-stock · 1 dispatched · 102 total (48 shown with current filter)` when filtering by location — the "48" matched nothing else in that line). Now, whenever a filter (status/search/location/date) is active, the breakdown itself is computed from the filtered rows on screen, so the numbers always add up to what's shown (e.g. `47 in-stock · 1 dispatched · 48 shown (102 total, unfiltered)`). With no filter active, it's still the full-model breakdown as in v3.5.
