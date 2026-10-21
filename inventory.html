@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Windmar · Anker Inventory</title>
+<!--
+  Read-only inventory view (/inventory route).
+  NOTE: This file keeps its OWN copy of NO_SERIAL_SKUS, separate from the
+  one in index.html. They have already drifted once (Oct 2026 — this file
+  was missing 3 new no-serial SKU codes that had been added to index.html:
+  A1263S12, A1336011, A1335011). Any future addition/removal of a no-serial
+  SKU must be made in BOTH index.html and this file, or they will show
+  inconsistent data (a no-serial SKU will render here as a bogus
+  single-unit serialized row instead of a quantity badge).
+-->
 <style>
 :root{
   --bg:#0d0d0d;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;--border2:#333;
@@ -104,7 +114,11 @@ var SB_URL = "https://sxwtqrxpqonyqkalcyuj.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4d3RxcnhwcW9ueXFrYWxjeXVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NTQxMzQsImV4cCI6MjA5MzIzMDEzNH0.PXiX55-3lhwAf5rSoUPl3A2b5PgThjRw5oNBd50IC9E";
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
-var NO_SERIAL_SKUS = ['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111'];
+// Kept in sync with index.html's NO_SERIAL_SKUS (see note at top of file).
+// Updated Oct 2026: added A1263S12 (PowerCore 10,000, permanent no-serial),
+// A1336011 and A1335011 (Anker Prime 200W/130W power banks, interim —
+// remove these two once real serials are collected and bulk-imported).
+var NO_SERIAL_SKUS = ['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12','A1336011','A1335011'];
 function isNoSerial(skuCode){ return NO_SERIAL_SKUS.indexOf(skuCode) >= 0; }
 
 var inv = [];
