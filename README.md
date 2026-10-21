@@ -5,7 +5,7 @@
 Serial-level inventory, dispatch, returns (RMA) and activity tracking for the Anker SOLIX stock at the Windmar warehouse in Puerto Rico. Single-page web app with a small serverless backend and a Supabase (Postgres) database.
 
 - **Author:** Sergio A. Romero
-- **Version:** 3.4 (Oct 2026)
+- **Version:** 3.6 (Oct 2026)
 
 ---
 
@@ -15,7 +15,7 @@ Serial-level inventory, dispatch, returns (RMA) and activity tracking for the An
 |---|---|
 | **Dispatch** | Scan, type or paste serials into a queue, add no-serial accessories by quantity, then **Dispatch now** or **Dispatch + Receipt**. Optional case # (e.g. `PPS7202`). |
 | **Dispatch + Receipt** | 5-step flow: choose type (Brigada / Regular / Consultor) → upload the DocuSign contract PDF → review → client signs on screen (or skip with a reason) → the PDF is stamped with case #, type, items, notes and signature. Share by WhatsApp, email, a 7-day link (Supabase Storage), or print. |
-| **Inventory** | Searchable by serial, model, case # (smart autocomplete). Locations (rack codes such as `NDC3`), add item, bulk import, CSV export. |
+| **Inventory** | Searchable by serial, model, case # (smart autocomplete). Locations (rack codes such as `NDC3`), add item, bulk import, CSV export. Per-model drill-down shows a live in-stock/dispatched/RMA breakdown (see Changelog, v3.5–v3.6). |
 | **RMA / Returns** | Log single or bulk returns. Reasons that restock (`No cambio`, `Re coordinado`, `Cancelado`, `Back to stock`) return the unit to stock; others keep it flagged RMA. Incoming damaged units and outbound shipments are tracked. |
 | **Activity log** | Every dispatch, return, add and correction, with a date-range and type filter and a printable report. |
 | **AI assistant** | Admin-only chat panel backed by Claude (Haiku 4.5) with tool use: query inventory/log, dispatch a unit, log a return, correct a status, update a location. |
@@ -37,6 +37,8 @@ readme-banner.png       Logo on a dark background, used only at the top of this 
 ```
 
 > **Keep the two `auth.js` files in sync.** The repo is set up for both Vercel and Cloudflare Pages, and each host serves its own copy. They have drifted: the Cloudflare copy has no `update_status` AI tool. Any change to auth, AI or dispatch endpoints must be made in both (or one host retired).
+
+> **`inventory.html` is a separate file from `index.html`.** If it renders its own per-model drill-down (rather than just loading/embedding the main app), any future change to that view's logic — including the v3.5/v3.6 count-breakdown fix below — needs to be applied there independently. Confirm and note the answer here once checked.
 
 ---
 
@@ -102,7 +104,7 @@ If `SESSION_SECRET` is missing, login still works but protected actions return a
 2. Set the environment variables above on the host.
 3. Hard-refresh the app after deploying and confirm the version in the page source header.
 
-There is no service worker in this repo, so a hard refresh is enough to pick up a new `index.html`.
+There is no service worker in this repo, so a hard refresh is enough to pick up a new `index.html`. If a deploy still "takes longer than usual" to show up, that's most likely Vercel/Cloudflare build or edge-cache propagation time rather than a stale browser copy — give it a minute before troubleshooting further.
 
 ---
 
@@ -111,6 +113,7 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 - **Dispatch is guarded.** Since v3.3 `execDispatch` has a re-entrancy lock, clears the queue before any network call, and only updates rows that are not already `dispatched`. Serials that were already dispatched are skipped and noted in the log instead of being logged twice.
 - **The AI tools are guarded the same way:** `dispatch_unit`, `log_return` and `update_status` only change a row if its status is still what was read, and the serial lookup rejects wildcard characters (`% * _ \`).
 - **Dispatch + Receipt** performs the inventory dispatch when the PDF is generated (step 5), not when the window opens. The PDF is not stored anywhere unless the **Link** option is used.
+- **Manual status corrections bypass the normal dispatch flow.** `execDispatch` explicitly clears `location` when it marks a unit dispatched; a status fixed by hand (e.g. via the AI assistant's `update_status` tool, or directly in Supabase) does not, so a unit can show status `dispatched` while still carrying its last warehouse `location`. This is what the v3.5/v3.6 drill-down fix below surfaces rather than hides.
 
 ---
 
@@ -122,10 +125,17 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 - The activity log records no source (UI vs. AI vs. SQL) beyond the message format.
 - PINs are stored and compared as plain text, and login attempts are not rate-limited.
 - The browser app writes to `inventory`, `activity_log` and the RMA tables directly with the public anon key, so Row Level Security policies on those tables are open to anon reads/writes. Only the server endpoints above are token-protected.
+- Whether `inventory.html` has its own copy of the per-model drill-down logic (and therefore needs the v3.5/v3.6 fix applied separately) has not been confirmed.
 
 ---
 
 ## Changelog
+
+**v3.6 (Oct 2026)**
+- v3.5 fixed the ambiguous drill-down count but paired a filtered row count against an unfiltered status breakdown (e.g. `101 in-stock · 1 dispatched · 102 total (48 shown with current filter)` when filtering by location — the "48" matched nothing else in that line). Now, whenever a filter (status/search/location/date) is active, the breakdown itself is computed from the filtered rows on screen, so the numbers always add up to what's shown (e.g. `47 in-stock · 1 dispatched · 48 shown (102 total, unfiltered)`). With no filter active, it's still the full-model breakdown as in v3.5.
+
+**v3.5 (Oct 2026)**
+- Fixed a misleading per-model drill-down header count in Inventory: it showed a single "N serials" number that silently followed whatever status filter was active, and defaulted to summing **all** statuses (in-stock + dispatched + RMA) together when "All statuses" was selected — e.g. a model with 101 in-stock and 1 already-dispatched unit showed "102 serials" with no indication one was already out. The header now always shows an explicit in-stock/dispatched/RMA breakdown, so the number people actually plan stock around is never hidden inside a combined total.
 
 **v3.4 (Oct 2026)**
 - Signed session tokens: the AI assistant, driver view, PIN change/reset and dispatch/receipt endpoints now verify who is calling on the server. New `SESSION_SECRET` environment variable required.
