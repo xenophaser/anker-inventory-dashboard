@@ -3,8 +3,22 @@
   Anker Warehouse — Inventory Management System
   ============================================================
   Author     : Sergio A. Romero
-  Version    : 3.5
+  Version    : 3.6
   Updated    : Oct 2026
+
+  Changes v3.6 (on top of v3.5):
+  - v3.5 fixed the ambiguous "N serials" header but introduced a confusing
+    pairing: it showed the FULL model's status breakdown next to a FILTERED
+    row count that didn't match it, e.g. "101 in-stock . 1 dispatched .
+    102 total (48 shown with current filter)" when filtering to location
+    NAB2 -- the "48" didn't correspond to anything in that breakdown. Now,
+    whenever a filter (status/search/location/date) is active, the
+    breakdown itself is computed from the FILTERED rows on screen, so the
+    numbers always add up to what's actually shown (e.g. filtering to NAB2
+    now reads "47 in-stock . 1 dispatched . 48 shown (102 total,
+    unfiltered)" -- making it immediately visible that 1 of the 48 rows in
+    that bin is the already-dispatched unit). With no filter active, it's
+    just the full-model breakdown as in v3.5.
 
   Changes v3.5 (on top of v3.4):
   - Fixed misleading per-model drill-down header count: it showed a single
@@ -692,21 +706,40 @@ function renderInv(q){
     if(drillSort==="asc")items.sort(function(a,b){return(a.location||"￿").localeCompare(b.location||"￿");});
     else if(drillSort==="desc")items.sort(function(a,b){return(b.location||"￿").localeCompare(a.location||"￿");});
     var arrow=drillSort==="asc"?" ↑":drillSort==="desc"?" ↓":" ⇅";
-    // v3.5: header count no longer collapses every status into one ambiguous
-    // number. Compute the breakdown from the FULL set for this model
-    // (ignoring sf/sq/sloc/date filters) so it always tells the truth about
-    // what's in-stock vs dispatched vs RMA, regardless of which filter view
-    // someone happens to be looking at.
+    // v3.6: header count no longer collapses every status into one ambiguous
+    // number, and no longer pairs a filtered row-count against an unfiltered
+    // breakdown (v3.5 did "101 in-stock · 1 dispatched · 102 total (48 shown
+    // with current filter)" — the 48 didn't correspond to anything in that
+    // breakdown, which read as more confusing, not less). Now: when a filter
+    // is active, the breakdown itself is computed from the FILTERED rows
+    // (items) — the exact set on screen — so the status split always adds up
+    // to the row count shown; the unfiltered model total is appended as a
+    // small muted aside for context only. With no filter active, it's just
+    // the full-model breakdown.
     var allForSku=inv.filter(function(i){return i.sku===drillSku;});
-    var cStock=allForSku.filter(function(i){return i.status==="in-stock";}).length;
-    var cDisp=allForSku.filter(function(i){return i.status==="dispatched";}).length;
-    var cRma=allForSku.filter(function(i){return i.status==="rma";}).length;
-    var countParts=[cStock+" in-stock"];
-    if(cDisp)countParts.push(cDisp+" dispatched");
-    if(cRma)countParts.push(cRma+" RMA");
-    countParts.push(allForSku.length+" total");
-    var countLabel=countParts.join(" &middot; ");
-    var shownSuffix=items.length!==allForSku.length?" &nbsp;(" + items.length + " shown with current filter)":"";
+    var filtersActive=!!(sf||sq||sloc||sdateFrom||sdateTo);
+    var countLabel;
+    if(filtersActive){
+      var fStock=items.filter(function(i){return i.status==="in-stock";}).length;
+      var fDisp=items.filter(function(i){return i.status==="dispatched";}).length;
+      var fRma=items.filter(function(i){return i.status==="rma";}).length;
+      var fParts=[];
+      if(fStock)fParts.push(fStock+" in-stock");
+      if(fDisp)fParts.push(fDisp+" dispatched");
+      if(fRma)fParts.push(fRma+" RMA");
+      if(!fParts.length)fParts.push("0 matching");
+      fParts.push(items.length+" shown");
+      countLabel=fParts.join(" &middot; ")+" &nbsp;<span style='opacity:.6'>("+allForSku.length+" total, unfiltered)</span>";
+    }else{
+      var cStock=allForSku.filter(function(i){return i.status==="in-stock";}).length;
+      var cDisp=allForSku.filter(function(i){return i.status==="dispatched";}).length;
+      var cRma=allForSku.filter(function(i){return i.status==="rma";}).length;
+      var tParts=[cStock+" in-stock"];
+      if(cDisp)tParts.push(cDisp+" dispatched");
+      if(cRma)tParts.push(cRma+" RMA");
+      tParts.push(allForSku.length+" total");
+      countLabel=tParts.join(" &middot; ");
+    }
     var skuLabel=allForSku.length>0&&allForSku[0].skuCode?" <span style='font-family:var(--mono);font-size:11px;color:var(--text3)'>"+esc(allForSku[0].skuCode)+"</span>":"";
     var rows=items.map(function(i){
       var lbl=i.status==="in-stock"?"In stock":i.status==="dispatched"?"Out":"RMA";
@@ -714,7 +747,7 @@ function renderInv(q){
       var locBtn=i.status==="in-stock"?"<button class='btn sm gh' onclick='guardAction(function(){openLocation(\""+esc(i.serial)+"\",\""+esc(i.location)+"\");})'>&#128205;</button>":"";
       return "<tr><td style='font-family:var(--mono);font-size:12px'>"+esc(i.serial)+"</td><td><span class='badge "+i.status+"'>"+lbl+"</span></td><td>"+lb+" "+locBtn+"</td><td style='font-size:11px;color:var(--text3)'>"+fd(i.updatedAt)+"</td><td><button class='btn sm gh' data-serial='"+esc(i.serial)+"' onclick='guardRet(this)'>&#8629;</button></td></tr>";
     });
-    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+countLabel+shownSuffix+"</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th class='th-sort' style='width:150px' onclick='toggleDrillSort()' title='Click to sort by location'>Location"+arrow+"</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
+    wrap.innerHTML="<div style='padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap'><button class='btn sm gh' onclick='drillSku=null;renderInv()'>&#8592; Back</button><span style='font-weight:600;font-size:14px'>"+esc(drillSku)+"</span>"+skuLabel+"<span style='color:var(--text3);font-size:12px'>&nbsp;"+countLabel+"</span></div><table><thead><tr><th>Serial</th><th style='width:90px'>Status</th><th class='th-sort' style='width:150px' onclick='toggleDrillSort()' title='Click to sort by location'>Location"+arrow+"</th><th style='width:120px'>Updated</th><th style='width:50px'></th></tr></thead><tbody>"+rows.join("")+"</tbody></table>";
     return;
   }
   var groups={};
