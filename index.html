@@ -3,8 +3,23 @@
   Anker Warehouse — Inventory Management System
   ============================================================
   Author     : Sergio A. Romero
-  Version    : 3.6
+  Version    : 3.7
   Updated    : Oct 2026
+
+  Changes v3.7 (on top of v3.6):
+  - Added 3 new quantity-tracked (no-serial) SKUs to NO_SERIAL_SKUS:
+      * PowerCore 10,000 (A1263S12) — units ship with no serial number on
+        the box at all, same as the existing no-serial accessory SKUs
+        (e.g. the AC Charging Cable, A17U1111). This is a PERMANENT
+        no-serial SKU, tracked by quantity (1624 on hand) indefinitely.
+      * Anker Prime 20,000mAh Power Bank 200W (A1336011, 269 on hand) and
+        Anker Prime 12,000mAh Power Bank 130W (A1335011, 254 on hand) —
+        these units DO have individual serial numbers, they just haven't
+        been scanned/collected yet. This is an INTERIM state only: once
+        the real serials are collected, pull these two SKU codes back out
+        of NO_SERIAL_SKUS, delete their placeholder rows, and bulk-import
+        the real units as normal serialized rows. PowerCore stays in this
+        array permanently; the two Prime SKUs should not.
 
   Changes v3.6 (on top of v3.5):
   - v3.5 fixed the ambiguous "N serials" header but introduced a confusing
@@ -631,7 +646,7 @@ var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization"
 var inv=[],log=[],queue=[],sf="",sq="",sloc="",sdateFrom="",sdateTo="",drillSku=null,drillSort="";
 var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
-var NO_SERIAL_SKUS=['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111'];
+var NO_SERIAL_SKUS=['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12','A1336011','A1335011'];
 function isNoSerial(skuCode){return NO_SERIAL_SKUS.indexOf(skuCode)>=0;}
 var noSerialItems=[];
 
