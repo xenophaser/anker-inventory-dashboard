@@ -5,7 +5,7 @@
 Serial-level inventory, dispatch, returns (RMA) and activity tracking for the Anker SOLIX stock at the Windmar warehouse in Puerto Rico. Single-page web app with a small serverless backend and a Supabase (Postgres) database.
 
 - **Author:** Sergio A. Romero
-- **Version:** 3.7 (Oct 2026)
+- **Version:** `index.html` 3.9 · `inventory.html` 3.9 (Oct 2026)
 
 ---
 
@@ -38,7 +38,7 @@ readme-banner.png       Logo on a dark background, used only at the top of this 
 
 > **Keep the two `auth.js` files in sync.** The repo is set up for both Vercel and Cloudflare Pages, and each host serves its own copy. They have drifted: the Cloudflare copy has no `update_status` AI tool. Any change to auth, AI or dispatch endpoints must be made in both (or one host retired).
 
-> **`inventory.html` is a separate file from `index.html`.** If it renders its own per-model drill-down (rather than just loading/embedding the main app), any future change to that view's logic — including the v3.5/v3.6 count-breakdown fix below — needs to be applied there independently. Confirm and note the answer here once checked.
+> **`inventory.html` is a separate file from `index.html` — confirmed, not hypothetical.** It has its own copy of `NO_SERIAL_SKUS` and its own grouping/drill-down logic. This already drifted once: when the 3 new no-serial SKUs were added to `index.html` in v3.7, `inventory.html` was not updated, so those SKUs briefly rendered on `/inventory` as bogus single-unit serialized rows instead of quantity badges (fixed in v3.7.1). **Any future addition, removal, or SKU-detection change must be made in both files.** Note also: `inventory.html`'s drill-down for regular serialized SKUs still shows the old plain `"N serials"` count with no in-stock/dispatched/RMA breakdown — the v3.5/v3.6 fix on that view was never ported over. Low-impact (view-only page) but listed below under Known gaps.
 
 ---
 
@@ -125,11 +125,24 @@ There is no service worker in this repo, so a hard refresh is enough to pick up 
 - The activity log records no source (UI vs. AI vs. SQL) beyond the message format.
 - PINs are stored and compared as plain text, and login attempts are not rate-limited.
 - The browser app writes to `inventory`, `activity_log` and the RMA tables directly with the public anon key, so Row Level Security policies on those tables are open to anon reads/writes. Only the server endpoints above are token-protected.
-- Whether `inventory.html` has its own copy of the per-model drill-down logic (and therefore needs the v3.5/v3.6 fix applied separately) has not been confirmed.
+- `inventory.html`'s drill-down for regular (serialized) SKUs still shows the old pre-v3.5 plain `"N serials"` count, with no in-stock/dispatched/RMA breakdown. The v3.5/v3.6 fix in `index.html` was never ported to this file. Not yet fixed — low priority since it's the view-only page, but worth doing if `inventory.html` ever becomes more than a quick reference.
+- `index.html` and `inventory.html` also each embed their own copy of the Supabase `SB_URL`/`SB_KEY` constants (a third place, beyond the two `auth.js` files, that needs updating on any credential rotation).
 
 ---
 
 ## Changelog
+
+**v3.9 (Oct 2026) — both files**
+- Anker Prime 12,000mAh Power Bank 130W (`A1335011`): 242 of the 254 units were scanned; the other 12 were skipped by accident during scanning (nothing physically missing — all 254 are in stock). Removed from `NO_SERIAL_SKUS` in both files. The 242 scanned units became normal serialized rows; the remaining 12 got individual placeholder rows (`NO-SN-A1335011-01` through `-12`, status `in-stock`) instead of one combined quantity row, so the SKU total still reads 254 and each pending unit is visible in the drill-down. **When one of those 12 gets re-scanned, just `UPDATE` that row's `serial` to the real value — no re-import needed.**
+- With this, all 3 of the Oct 2026 SKU additions (PowerCore, Prime 200W, Prime 130W) are resolved except for the 12 pending Prime 130W serials above. `NO_SERIAL_SKUS` is back down to the original 5 cable/accessory SKUs plus PowerCore (`A1263S12`), which is permanent.
+
+**v3.8 (Oct 2026) — both files**
+- Anker Prime 20,000mAh Power Bank 200W (`A1336011`) real serials arrived (269 units). Removed from `NO_SERIAL_SKUS` in both `index.html` and `inventory.html`. Process: SELECT to confirm the placeholder row (quantity 269, no location) → DELETE the placeholder (`NO-SN-A1336011`) → INSERT the 269 real serials as `in-stock` rows → SELECT to confirm 269 rows / 269 in-stock / 0 leftover placeholder → remove the SKU code from both files' arrays. It now behaves as a normal serialized SKU with the usual per-model drill-down and status breakdown.
+- Anker Prime 12,000mAh Power Bank 130W (`A1335011`) is still pending — remains in `NO_SERIAL_SKUS` in both files until its real serials are collected, then follows the same process above.
+- Anker PowerCore 10,000 (`A1263S12`) is unaffected — stays in `NO_SERIAL_SKUS` permanently (no physical serial exists on these units).
+
+**v3.7.1 (Oct 2026) — `inventory.html` only**
+- `inventory.html` has its own independent `NO_SERIAL_SKUS` array (it does not share code with `index.html`). It was missed when the 3 SKUs below were added in v3.7, so on the `/inventory` page they were showing as regular single-unit serialized items instead of quantity-tracked ones. Added `A1263S12`, `A1336011`, `A1335011` to this file's array to match `index.html`. See the callout above "Repository layout" — this is now a confirmed, recurring risk, not a hypothetical one.
 
 **v3.7 (Oct 2026)**
 - Added 3 new quantity-tracked (no-serial) SKUs to `NO_SERIAL_SKUS`:
