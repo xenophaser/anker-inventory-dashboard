@@ -3,8 +3,31 @@
   Anker Warehouse — Inventory Management System
   ============================================================
   Author     : Sergio A. Romero
-  Version    : 3.7
+  Version    : 3.9
   Updated    : Oct 2026
+
+  Changes v3.9 (on top of v3.8):
+  - Anker Prime 12,000mAh Power Bank 130W (A1335011): 242 of 254 units were
+      scanned (the other 12 were skipped by accident during scanning --
+      nothing physically missing, just need a re-scan). Pulled A1335011 out
+      of NO_SERIAL_SKUS: the 242 scanned units are now normal serialized
+      rows, and the remaining 12 got their own individual placeholder rows
+      (serial = 'NO-SN-A1335011-01' through '-12', status in-stock) instead
+      of one combined quantity row, so the SKU total still reads 254 and
+      each pending unit shows up in the drill-down. When one of the 12 gets
+      re-scanned, just UPDATE that row's serial to the real value -- no
+      re-import needed. All 3 of the Oct 2026 SKU additions are now fully
+      resolved except for those 12 pending serials.
+
+  Changes v3.8 (on top of v3.7):
+  - Anker Prime 20,000mAh Power Bank 200W (A1336011) real serials arrived:
+      pulled A1336011 out of NO_SERIAL_SKUS now that it's tracked as 269
+      individually serialized units (placeholder row removed, 269 real
+      serial rows bulk-imported via SQL). It now behaves like any other
+      serialized SKU: normal per-model drill-down with in-stock/dispatched/
+      RMA breakdown. PowerCore (A1263S12) stays no-serial permanently.
+      Anker Prime 12,000mAh Power Bank 130W (A1335011) is still pending its
+      real serials and remains in NO_SERIAL_SKUS for now.
 
   Changes v3.7 (on top of v3.6):
   - Added 3 new quantity-tracked (no-serial) SKUs to NO_SERIAL_SKUS:
@@ -646,7 +669,7 @@ var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization"
 var inv=[],log=[],queue=[],sf="",sq="",sloc="",sdateFrom="",sdateTo="",drillSku=null,drillSort="";
 var rmaIncoming=[],rmaShipments=[];
 var RESTOCK_REASONS=["No cambio","Re coordinado","Cancelado","Back to stock"];
-var NO_SERIAL_SKUS=['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12','A1336011','A1335011'];
+var NO_SERIAL_SKUS=['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12'];
 function isNoSerial(skuCode){return NO_SERIAL_SKUS.indexOf(skuCode)>=0;}
 var noSerialItems=[];
 
