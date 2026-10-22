@@ -6,6 +6,7 @@
 <title>Windmar · Anker Inventory</title>
 <!--
   Read-only inventory view (/inventory route).
+  Version: 3.9 (Oct 2026)
   NOTE: This file keeps its OWN copy of NO_SERIAL_SKUS, separate from the
   one in index.html. They have already drifted once (Oct 2026 — this file
   was missing 3 new no-serial SKU codes that had been added to index.html:
@@ -13,6 +14,16 @@
   SKU must be made in BOTH index.html and this file, or they will show
   inconsistent data (a no-serial SKU will render here as a bogus
   single-unit serialized row instead of a quantity badge).
+
+  v3.8: Anker Prime 20,000mAh Power Bank 200W (A1336011) real serials
+  arrived — removed from NO_SERIAL_SKUS, now 269 normal serialized rows.
+
+  v3.9: Anker Prime 12,000mAh Power Bank 130W (A1335011) — 242 of 254 real
+  serials arrived (12 skipped during scanning by accident, nothing
+  physically missing). Removed from NO_SERIAL_SKUS: 242 are now normal
+  serialized rows, and the other 12 are individual placeholder rows
+  ('NO-SN-A1335011-01' .. '-12') until they're re-scanned. All Oct 2026
+  SKU additions are now fully serialized except those 12 pending rows.
 -->
 <style>
 :root{
@@ -115,10 +126,11 @@ var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var HEADERS = {"Content-Type":"application/json","apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
 
 // Kept in sync with index.html's NO_SERIAL_SKUS (see note at top of file).
-// Updated Oct 2026: added A1263S12 (PowerCore 10,000, permanent no-serial),
-// A1336011 and A1335011 (Anker Prime 200W/130W power banks, interim —
-// remove these two once real serials are collected and bulk-imported).
-var NO_SERIAL_SKUS = ['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12','A1336011','A1335011'];
+// A1263S12 (PowerCore 10,000) is the only remaining no-serial SKU, and it's
+// permanent (no physical serial exists on these units). A1336011 (Prime
+// 200W) and A1335011 (Prime 130W) both had their real serials collected
+// and were removed from this list in v3.8/v3.9.
+var NO_SERIAL_SKUS = ['A24V5011','A24V7011','A17U1111','A24U2011','A17U7111','A1263S12'];
 function isNoSerial(skuCode){ return NO_SERIAL_SKUS.indexOf(skuCode) >= 0; }
 
 var inv = [];
